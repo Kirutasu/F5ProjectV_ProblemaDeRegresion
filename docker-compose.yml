@@ -11,6 +11,7 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+      - /Users/ksius/workspace/regresiones/data:/import # <-- ahora bien definido
 
 volumes:
   db_data:
