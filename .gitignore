@@ -1,0 +1,36 @@
+# Entornos virtuales de Python
+.venv/
+venv/
+env/
+
+# Archivos de datos (si son grandes o contienen información sensible)
+data/
+*.csv
+
+# Archivos de configuración de Docker
+docker-compose.override.yml
+
+# Archivos de Jupyter Notebook
+.ipynb_checkpoints/
+
+# Archivos temporales o de limpieza
+clean
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Archivos compilados de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
