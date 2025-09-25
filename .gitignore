@@ -4,6 +4,9 @@ venv/
 env/
 
 # Archivos de datos (si son grandes o contienen información sensible)
+.json
+
+# Archivos de datos (si son grandes o contienen información sensible)
 data/
 *.csv
 
