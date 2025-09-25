@@ -5,6 +5,7 @@ env/
 
 # Archivos de datos (si son grandes o contienen información sensible)
 .json
+.env 
 
 # Archivos de datos (si son grandes o contienen información sensible)
 data/
