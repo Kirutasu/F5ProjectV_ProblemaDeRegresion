@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import joblib  # Importamos joblib para cargar el modelo .pkl
+import os
 
 # --- Configuración de la página de Streamlit ---
 st.set_page_config(
@@ -27,14 +29,29 @@ def load_data():
         data = pd.read_csv("DatosLimpios.csv")
         return data
     except FileNotFoundError:
-        st.error("No se encontró el archivo de datos. Asegúrate de que 'Datos Limpios - Datos Limpios (1).csv' esté en la misma carpeta.")
+        st.error("No se encontró el archivo de datos. Asegúrate de que 'DatosLimpios.csv' esté en la misma carpeta.")
         return pd.DataFrame() # Devuelve un DataFrame vacío si el archivo no se encuentra
 
-# Llama a la función para cargar los datos.
+# Función para cargar el modelo de regresión
+@st.cache_resource
+def load_model(model_filename):
+    try:
+        model_path = os.path.join("agents", model_filename)
+        model = joblib.load(model_path)
+        return model
+    except FileNotFoundError:
+        st.error(f"No se encontró el modelo '{model_filename}' en la carpeta 'agents'.")
+        return None
+    
+# Cargar todos los datos y modelos al inicio
 df = load_data()
+reg_model_1 = load_model("modelo_regresion_precios.pkl")
+class_model_1 = load_model("modelo_clasificacion_precio_alto.pkl")
+reg_model_rf = load_model("mejor_modelo_regresion_Random_forest.pkl")
+class_model_rf = load_model("mejor_modelo_clasificacion_random_forest.pkl")
 
 # --- Funciones para cada página ---
-def home_page(df):
+def home_page(df, models):
     """Página principal del dashboard con filtros y el formulario."""
     
     # --- Diseño de la barra lateral (Sidebar) ---
@@ -70,55 +87,109 @@ def home_page(df):
             file_name='datos_filtrados.csv',
             mime='text/csv',
         )
-    
-    # --- Sección de Exploración de Datos ---
+        
     st.subheader("Exploración de Datos")
-    st.write(f"Mostrando datos para la marca: **{selected_brand if selected_brand else 'Todas las Marcas'}**")
+    filtered_df = df[df['Brands'] == selected_brand] if selected_brand else df
     st.dataframe(filtered_df)
 
-    # --- Sección del Formulario de Predicción de Precios ---
-    st.subheader("Formulario de Predicción de Precios")
-    st.markdown("Por favor, introduce los datos del vehículo para obtener una estimación de su precio.")
+    # --- Sección de Exploración de Datos ---
+    st.subheader("Formulario de Simulación")
+    st.markdown("Introduce los datos del vehículo para realizar una predicción.")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        brand = st.selectbox("Marca del vehículo", sorted(df['Brands'].unique()))
-        models_for_brand = sorted(df[df['Brands'] == brand]['Model'].unique())
-        model = st.selectbox("Modelo del vehículo", models_for_brand)
-        engine = st.text_input("Motor (Ej. V8)", "V8")
-        year = st.number_input("Año de fabricación", min_value=1950, max_value=2025, value=2015, step=1)
-        engine_capacity = st.number_input("Cilindrada del motor (en cc)", min_value=0, value=int(df['Engine_capacity_in_cc'].mean()), step=100)
+    # --- Formulario de entrada de datos ---
+    with st.form("prediction_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            brand = st.selectbox("Marca del vehículo", sorted(df['Brands'].unique()))
+            models_for_brand = sorted(df[df['Brands'] == brand]['Model'].unique())
+            model_selection = st.selectbox("Modelo del vehículo", models_for_brand)
+            year = st.number_input("Año de fabricación", 1950, 2025, 2015)
+            engine_capacity = st.number_input("Cilindrada (cc)", 0, value=int(df['Engine_capacity_in_cc'].mean()))
 
-    with col2:
-        horsepower = st.number_input("Caballos de fuerza (HP)", min_value=0, value=int(df['HorsePower_in_HP'].mean()), step=10)
-        seats = st.number_input("Número de asientos", min_value=1, max_value=10, value=5, step=1)
-        fuel_options = sorted(df['Fuel_1'].unique())
-        fuel_type = st.selectbox("Tipo de combustible", fuel_options)
-        mileage = st.number_input("Kilometraje", min_value=0, value=50000, step=1000)
+        with col2:
+            horsepower = st.number_input("Caballos de fuerza (HP)", 0, value=int(df['HorsePower_in_HP'].mean()))
+            seats = st.number_input("Número de asientos", 1, 10, 5)
+            fuel_options = sorted(df['Fuel_1'].unique())
+            fuel_type = st.selectbox("Tipo de combustible", fuel_options)
+            mileage = st.number_input("Kilometraje", 0, value=50000)
 
-    predict_button = st.button("Predecir Precio")
+        # --- Lógica de envío del formulario ---
+        submitted = st.form_submit_button("Realizar Predicciones")
 
-    if predict_button:
-        st.subheader("Resultados de la Predicción")
-        st.info("Nota: La lógica del modelo de predicción debe ser implementada aquí.")
-        estimated_price = 460000
-        price_min = 450000
-        price_max = 470000
-        st.metric(label="Precio Estimado", value=f"${estimated_price:,.2f}")
-        st.markdown(f"**Rango de precios:** ${price_min:,.2f} - ${price_max:,.2f}")
-        st.subheader("Visualizaciones de Apoyo")
-        st.write("Gráfico de comparación del precio predicho vs. precio real (simulado).")
+    if submitted:
+        # --- CONSTRUCCIÓN MANUAL DEL DATAFRAME DE ENTRADA ---
         
-        comparison_df = pd.DataFrame({'Tipo de Precio': ['Predicho', 'Real (Ejemplo)'], 'Precio': [estimated_price, 455000]})
-        fig_comparison = px.bar(comparison_df, x='Tipo de Precio', y='Precio', title='Comparación de Precios', color='Tipo de Precio', labels={'Tipo de Precio': 'Precio', 'Precio': 'Valor en USD'}, template="plotly_white")
-        st.plotly_chart(fig_comparison)
-        
-        st.markdown("---")
-        st.write("Importancia de las características en la predicción (simulado).")
-        feature_importance_df = pd.DataFrame({'Característica': ['Kilometraje', 'Año', 'Caballos de Fuerza', 'Cilindrada', 'Tipo de Combustible'], 'Importancia': [0.45, 0.30, 0.15, 0.05, 0.05]}).sort_values('Importancia', ascending=True)
-        fig_importance = px.bar(feature_importance_df, y='Característica', x='Importancia', orientation='h', title='Importancia de las Características', labels={'Importancia': 'Nivel de Importancia', 'Característica': 'Características'}, template="plotly_white")
-        st.plotly_chart(fig_importance)
+        # 1. Cargar la lista de columnas que el modelo espera
+        try:
+            model_columns = joblib.load(os.path.join("agents", "model_columns.pkl"))
+        except FileNotFoundError:
+            st.error("Falta el archivo 'model_columns.pkl' en la carpeta 'agents'. Este archivo es esencial para construir la entrada del modelo. Pídelo a quien entrenó el modelo.")
+            st.stop()
 
+        # 2. Crear un DataFrame con todas las columnas del modelo, lleno de ceros
+        input_df = pd.DataFrame(columns=model_columns)
+        input_df.loc[0] = 0
+
+        # 3. Rellenar los valores que conocemos del formulario
+        # Valores numéricos directos
+        if 'Year' in input_df.columns: input_df['Year'] = year
+        if 'Engine_capacity_in_cc' in input_df.columns: input_df['Engine_capacity_in_cc'] = engine_capacity
+        if 'HorsePower_in_HP' in input_df.columns: input_df['HorsePower_in_HP'] = horsepower
+        if 'Seats' in input_df.columns: input_df['Seats'] = seats
+        if 'Mileage' in input_df.columns: input_df['Mileage'] = mileage
+
+        # Valores categóricos (One-Hot Encoding manual)
+        brand_col = f"Brands_{brand}"
+        if brand_col in input_df.columns: input_df[brand_col] = 1
+        
+        model_col = f"Model_{model_selection}"
+        if model_col in input_df.columns: input_df[model_col] = 1
+
+        fuel_col = f"Fuel_1_{fuel_type}"
+        if fuel_col in input_df.columns: input_df[fuel_col] = 1
+
+        # 4. Rellenar las columnas transformadas y otras que no están en el formulario
+        # Para estas, usaremos la media del dataset original como un valor de relleno plausible.
+        for col in input_df.columns:
+            # Si la columna sigue siendo 0 (no la hemos rellenado) y existe en el df original...
+            if input_df[col].iloc[0] == 0 and col in df.columns:
+                input_df[col] = df[col].mean()
+
+        # 5. Asegurarse de que el orden de las columnas es el correcto
+        input_df = input_df[model_columns]
+
+        st.subheader("Resultados de la Simulación")
+        res_col1, res_col2 = st.columns(2)
+
+        # --- Columna de Regresión ---
+        with res_col1:
+            st.markdown("#### 1. Predicción de Precio (Regresión)")
+            if models['reg_rf'] is not None:
+                try:
+                    prediction_rf = models['reg_rf'].predict(input_df)
+                    st.metric(label="Precio Estimado (Random Forest)", value=f"${prediction_rf[0]:,.2f}")
+                except Exception as e:
+                    st.error(f"Error con modelo Random Forest: {e}")
+                    st.write("Debug: Columnas del DataFrame de entrada:")
+                    st.write(input_df.columns.tolist())
+            else:
+                st.warning("Modelo de regresión (RF) no cargado.")
+
+        # --- Columna de Clasificación ---
+        with res_col2:
+            st.markdown("#### 2. Clasificación de Precio (Alto/Bajo)")
+            if models['class_rf'] is not None:
+                try:
+                    classification_rf = models['class_rf'].predict(input_df)
+                    if classification_rf[0] == 1:
+                        st.success("Resultado (Random Forest): PRECIO ALTO")
+                    else:
+                        st.info("Resultado (Random Forest): PRECIO NO ALTO")
+                except Exception as e:
+                    st.error(f"Error con modelo Random Forest: {e}")
+            else:
+                st.warning("Modelo de clasificación (RF) no cargado.")
+                
 def history_page():
     """Página para el historial de búsquedas del usuario."""
     st.header("Historial de Búsquedas")
@@ -193,7 +264,11 @@ else:
             st.rerun()
 
     if st.session_state.page == "home":
-        home_page(df)
+        model_pack = {
+            "reg_1": reg_model_1, "class_1": class_model_1,
+            "reg_rf": reg_model_rf, "class_rf": class_model_rf
+        }
+        home_page(df, model_pack)
     elif st.session_state.page == "history":
         history_page()
     elif st.session_state.page == "profile":
