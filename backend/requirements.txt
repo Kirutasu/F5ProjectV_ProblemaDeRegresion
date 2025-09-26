@@ -8,14 +8,14 @@ python-dotenv==1.1.1
 pydantic==2.10.4
 
 # ----------------------------
-# Manipulación de datos
+# Manipulación de datos / ML
 # ----------------------------
-numpy==2.0.2
+numpy==1.26.4          # ✅ Última versión con soporte completo para Python 3.11
 pandas==2.2.3
 scipy==1.10.1
 polars==1.14.0
 missingno==0.5.2
-kagglehub==0.3.4
+kagglehub==0.3.13
 
 # ----------------------------
 # Visualización
@@ -34,3 +34,5 @@ joblib==1.4.2
 # Producción / App
 # ----------------------------
 streamlit==1.39.0
+streamlit-aggrid==1.1.8
+streamlit-option-menu==0.4.0
