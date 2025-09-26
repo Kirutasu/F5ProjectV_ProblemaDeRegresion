@@ -1,17 +1,19 @@
-services:
-  db:
-    image: postgres:15
-    container_name: my_postgres
-    restart: always
-    environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypass
-      POSTGRES_DB: mydb
-    ports:
-      - "5432:5432"
-    volumes:
-      - db_data:/var/lib/postgresql/data
-      - /Users/ksius/workspace/regresiones/data:/import # <-- ahora bien definido
+version: '3.8'
 
-volumes:
-  db_data:
+services:
+  vehicle-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    volumes:
+      # Monta el directorio actual para desarrollo en vivo
+      - .:/app
+      # Monta el directorio de modelos
+      - ./models:/app/models
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - PYTHONPATH=/app
+    restart: unless-stopped
