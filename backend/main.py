@@ -8,10 +8,20 @@ from dotenv import load_dotenv
 from models import Car, CarPredictionRequest, CarPredictionResponse
 from typing import List, Optional
 from ml_service_final import car_service_final as car_service
+from ml_service_final import CarPredictionServiceFinal, car_service_final 
 import pandas as pd
 import logging
 from decimal import Decimal
 from sklearn.model_selection import train_test_split
+from contextlib import asynccontextmanager
+
+
+# Importa el servicio ML
+from ml_service_final import CarMLService 
+# Asegúrase de que el nombre del archivo y la clase sean correctos
+
+# Instancia el servicio ML
+car_service = CarMLService()
 
 load_dotenv()
 
@@ -24,28 +34,18 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://myuser:mypass@db:5432/myd
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manejar startup y shutdown de la aplicación"""
-    try:
-        # Conectar a la base de datos
-        #app.state.db = await asyncpg.create_pool(DATABASE_URL)
-
-        # Entrenar modelos automáticamente al inicio
-        #try:
-        #    logger.info("Iniciando entrenamiento automático de modelos...")
-        #    await entrenar_modelos_automaticamente(app.state.db)
-        #    logger.info("Modelos entrenados exitosamente")
-        #except Exception as e:
-        #    logger.warning(f"No se pudieron entrenar los modelos automáticamente: {e}")
-
-    except Exception as e:
-        logger.error(f"Error al conectarse a la base de datos: {e}")
-        raise e
-
-    yield
-
-    # Cleanup
-    if hasattr(app.state, "db"):
-        await app.state.db.close()
+    # *** AJUSTE CLAVE: SOLO CARGAR MODELOS AL INICIO ***
+    logger.info("Iniciando ciclo de vida: Cargando modelos...")
+    
+    # Llama a la función de carga con la ruta donde tienes tus .pkl
+    success = car_service_final.cargar_modelos(ruta_base="models") 
+    
+    if not success:
+        logger.error("No se pudieron cargar los modelos. La API de predicción no estará disponible.")
+    else:
+        logger.info("Modelos cargados. Aplicación lista.")
+        
+    yield # Aquí la aplicación comienza a recibir peticiones
 
 app = FastAPI(
     title="API de Predicción de Precios de Automóviles",
@@ -123,28 +123,30 @@ async def get_cars_filtered(
             cars.append(Car(**car_data))
         return cars
 
+
+# 3. Verificación del Endpoint /predict
 @app.post("/predict", response_model=CarPredictionResponse)
 async def predict_car_price(request: CarPredictionRequest):
-    """Predice el precio de un automóvil basado en sus características"""
+    if not car_service_final.is_trained:
+        raise HTTPException(status_code=503, detail="Modelos no cargados. Servicio no disponible.")
+    
     try:
-        datos_entrada = {
-            "brand": request.brand,
-            "model": request.model,
-            "engine_capacity": request.engine_capacity,
-            "horsepower": request.horsepower,
-            "max_speed": request.max_speed,
-            "time_to_100": request.time_to_100,
-            "seats": request.seats,
-            "torque": request.torque,
-            "fuel_type": request.fuel_type,
-        }
-
-        resultado = car_service.predecir_auto(datos_entrada)
-        return CarPredictionResponse(**resultado)
-
+        # Pasa los datos de la petición (que coinciden con tu modelo Pydantic)
+        datos_entrada = request.model_dump() # o .dict() si usas Pydantic v1
+        
+        # Llama a la predicción
+        resultado = car_service_final.predecir_auto(datos_entrada)
+        
+        # Mapea la respuesta del servicio al modelo de respuesta (CarPredictionResponse)
+        return CarPredictionResponse(
+            predicted_price=resultado["precio_predicho"],
+            category=resultado["categoria_predicha"],
+            # Incluye los otros campos que devuelve el servicio y que espera el modelo de respuesta
+        )
+        
     except Exception as e:
-        logger.error(f"Error en predicción: {e}")
-        raise HTTPException(status_code=500, detail=f"Error en predicción: {str(e)}")
+        logger.error(f"Error en el endpoint /predict: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor.")
 
 @app.post("/train")
 async def train_models():

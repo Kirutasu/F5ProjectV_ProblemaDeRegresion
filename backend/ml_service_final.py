@@ -236,32 +236,48 @@ class CarPredictionServiceFinal:
             logger.error(f"Columnas recibidas: {list(datos_entrada.keys())}")
             raise
 
-    def guardar_modelos(self, ruta_base: str = "models"):
-        """Guarda modelos entrenados"""
-        if not self.is_trained:
-            raise ValueError("Los modelos no han sido entrenados")
+    # ml_service_final.py (Dentro de la clase CarPredictionServiceFinal)
 
-        os.makedirs(ruta_base, exist_ok=True)
-        joblib.dump(self.modelo_regresion, f"{ruta_base}/modelo_regresion.pkl")
-        joblib.dump(self.modelo_clasificacion, f"{ruta_base}/modelo_clasificacion.pkl")
-        joblib.dump(self.preprocesador, f"{ruta_base}/preprocesador.pkl")
-        logger.info(f"Modelos guardados en {ruta_base}")
+# ...
+
+def guardar_modelos(self, ruta_base: str = "models"):
+    """Guarda modelos entrenados y metadatos (Ajuste crítico)"""
+    if not self.is_trained:
+        raise ValueError("Los modelos no han sido entrenados")
+
+    os.makedirs(ruta_base, exist_ok=True)
+    joblib.dump(self.modelo_regresion, f"{ruta_base}/modelo_regresion.pkl")
+    joblib.dump(self.modelo_clasificacion, f"{ruta_base}/modelo_clasificacion.pkl")
+    joblib.dump(self.preprocesador, f"{ruta_base}/preprocesador.pkl")
+    
+    # *** AJUSTE CLAVE 1: Guardar las listas de columnas ***
+    joblib.dump(self.columnas_numericas, f"{ruta_base}/columnas_numericas.pkl")
+    joblib.dump(self.columnas_categoricas, f"{ruta_base}/columnas_categoricas.pkl")
+    
+    logger.info(f"Modelos y metadatos guardados en {ruta_base}")
+    return True
+
+def cargar_modelos(self, ruta_base: str = "models"):
+    """Carga modelos entrenados y metadatos (Ajuste crítico)"""
+    try:
+        self.modelo_regresion = joblib.load(f"{ruta_base}/modelo_regresion.pkl")
+        self.modelo_clasificacion = joblib.load(
+            f"{ruta_base}/modelo_clasificacion.pkl"
+        )
+        self.preprocesador = joblib.load(f"{ruta_base}/preprocesador.pkl")
+        
+        # *** AJUSTE CLAVE 2: Cargar las listas de columnas ***
+        self.columnas_numericas = joblib.load(f"{ruta_base}/columnas_numericas.pkl")
+        self.columnas_categoricas = joblib.load(f"{ruta_base}/columnas_categoricas.pkl")
+        
+        self.is_trained = True
+        logger.info("Modelos y metadatos cargados exitosamente")
         return True
+    except Exception as e:
+        logger.error(f"Error al cargar modelos: {e}. Asegúrese de que todos los archivos (.pkl) existan en la carpeta '{ruta_base}'.")
+        return False
 
-    def cargar_modelos(self, ruta_base: str = "models"):
-        """Carga modelos entrenados"""
-        try:
-            self.modelo_regresion = joblib.load(f"{ruta_base}/modelo_regresion.pkl")
-            self.modelo_clasificacion = joblib.load(
-                f"{ruta_base}/modelo_clasificacion.pkl"
-            )
-            self.preprocesador = joblib.load(f"{ruta_base}/preprocesador.pkl")
-            self.is_trained = True
-            logger.info("Modelos cargados exitosamente")
-            return True
-        except Exception as e:
-            logger.error(f"Error al cargar modelos: {e}")
-            return False
+# ...
 
 # Instancia global del servicio
 car_service_final = CarPredictionServiceFinal()
