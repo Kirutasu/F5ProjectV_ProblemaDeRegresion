@@ -1,3 +1,4 @@
+# main.py.backup
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -5,10 +6,12 @@ import asyncpg
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from models import Car, CarPredictionRequest, CarPredictionResponse
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from ml_service_final import car_service_final as car_service
 import pandas as pd
 import logging
+from decimal import Decimal
+from sklearn.model_selection import train_test_split
 
 load_dotenv()
 
@@ -41,14 +44,14 @@ async def lifespan(app: FastAPI):
     yield
 
     # Cleanup
-    if hasattr(app.state, 'db'):
+    if hasattr(app.state, "db"):
         await app.state.db.close()
 
 app = FastAPI(
     title="API de Predicción de Precios de Automóviles",
     description="API para predicción de precios de automóviles usando modelos de ML",
     version="2.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -81,14 +84,14 @@ async def get_cars_filtered(
     limit: int = 300,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
-    precio_alto: Optional[int] = None
+    precio_alto: Optional[int] = None,
 ):
     """Devuelve autos filtrados por criterios"""
     query = "SELECT * FROM cars_data WHERE 1=1"
     params = []
 
     if min_price is not None:
-        query += " AND price_max_log >= $1"
+        query += f" AND price_max_log >= ${len(params) + 1}"
         params.append(min_price)
 
     if max_price is not None:
@@ -114,7 +117,6 @@ async def get_cars_filtered(
 async def predict_car_price(request: CarPredictionRequest):
     """Predice el precio de un automóvil basado en sus características"""
     try:
-        # Convertir request a diccionario con todas las variables necesarias
         datos_entrada = {
             "engine_capacity_in_cc_log": request.engine_capacity_in_cc_log,
             "horsepower_in_hp_log": request.horsepower_in_hp_log,
@@ -123,54 +125,65 @@ async def predict_car_price(request: CarPredictionRequest):
             "time_to_100kmph_sec_reciprocal": request.time_to_100kmph_sec_reciprocal,
             "seats_yeojohnson": request.seats_yeojohnson,
             "torque_in_nm_log": request.torque_in_nm_log,
+            "torque_in_nm_2_log": request.torque_in_nm_2_log,
         }
 
-        # Realizar predicción
-@app.post("/train")
-async def train_models():
-    """Entrena los modelos de ML con los datos actuales"""
-    try:
-        async with app.state.db.acquire() as connection:
-            # Cargar datos desde la base de datos
-            df = await connection.fetch("SELECT * FROM cars_data")
-            df = pd.DataFrame(df)
-
-            # Preparar datos
-            X, y_reg, y_clf = car_service.preparar_datos(df)
-
-            # Dividir datos (usando sklearn directamente)
-            from sklearn.model_selection import train_test_split
-            X_train, X_test, y_train_reg, y_test_reg = train_test_split(
-                X, y_reg, test_size=0.2, random_state=42
-            )
-            X_train, X_test, y_train_clf, y_test_clf = train_test_split(
-                X, y_clf, test_size=0.2, random_state=42
-            )
-
-            # Entrenar modelos
-            success = car_service.entrenar_modelos(
-                X_train, y_train_reg, X_test, y_test_reg, y_train_clf, y_test_clf
-
-            if success:
-                # Guardar modelos
-                car_service.guardar_modelos()
-                return {"message": "Modelos entrenados y guardados exitosamente"}
-
-        # Realizar predicción
         resultado = car_service.predecir_auto(datos_entrada)
-
         return CarPredictionResponse(**resultado)
 
     except Exception as e:
         logger.error(f"Error en predicción: {e}")
         raise HTTPException(status_code=500, detail=f"Error en predicción: {str(e)}")
 
+@app.post("/train")
+async def train_models():
+    """Entrena los modelos de ML con los datos de la base de datos."""
+    try:
+        async with app.state.db.acquire() as conn:
+            rows = await conn.fetch("SELECT * FROM cars_data")
+            data = [dict(row) for row in rows]
+            df = pd.DataFrame(data)
+
+            if df.empty:
+                return {"success": False, "message": "No hay datos en la base de datos"}
+
+        logger.info(f"Columnas del DataFrame: {list(df.columns)}")
+
+        X, y_reg, y_clf = car_service.preparar_datos(df)
+
+        # Split único y consistente
+        X_train, X_test, y_train_reg, y_test_reg = train_test_split(
+            X, y_reg, test_size=0.2, random_state=42
+        )
+        y_train_clf, y_test_clf = (
+            y_clf.loc[X_train.index],
+            y_clf.loc[X_test.index],
+        )
+
+        success = car_service.entrenar_modelos(
+            X_train, y_train_reg, X_test, y_test_reg, y_train_clf, y_test_clf
+        )
+
+        if success:
+            car_service.guardar_modelos()
+            return {
+                "success": True,
+                "message": "Modelos entrenados y guardados exitosamente",
+            }
+        else:
+            return {"success": False, "message": "Error al entrenar los modelos"}
+
+    except Exception as e:
+        logger.error(f"Error al entrenar modelos: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error al entrenar modelos: {str(e)}"
+        )
+
 @app.get("/cars/stats")
 async def get_cars_stats():
     """Devuelve estadísticas de los datos de automóviles"""
     try:
-{{ ... }}
-            # Obtener estadísticas básicas
+        async with app.state.db.acquire() as connection:
             stats_query = """
             SELECT
                 COUNT(*) as total_registros,
@@ -185,7 +198,6 @@ async def get_cars_stats():
             """
             stats_result = await connection.fetchrow(stats_query)
 
-            # Obtener distribución por categoría
             category_query = """
             SELECT precio_categoria, COUNT(*) as cantidad
             FROM cars_data
@@ -203,26 +215,26 @@ async def get_cars_stats():
                     "motor_promedio": float(stats_result["motor_promedio"]),
                     "potencia_promedio": float(stats_result["potencia_promedio"]),
                     "categorias_unicas": stats_result["categorias_unicas"],
-                    "tipos_asientos": stats_result["tipos_asientos"]
+                    "tipos_asientos": stats_result["tipos_asientos"],
                 },
                 "distribucion_categorias": [
                     {"categoria": row["precio_categoria"], "cantidad": row["cantidad"]}
                     for row in category_result
-                ]
+                ],
             }
 
     except Exception as e:
         logger.error(f"Error al obtener estadísticas: {e}")
-        raise HTTPException(status_code=500, detail=f"Error al obtener estadísticas: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error al obtener estadísticas: {str(e)}"
+        )
 
 @app.post("/predict/batch")
 async def predict_batch(cars: List[CarPredictionRequest]):
     """Realiza predicciones para múltiples automóviles"""
     try:
         resultados = []
-
         for car in cars:
-            # Convertir a diccionario
             datos_entrada = {
                 "engine_capacity_in_cc_log": car.engine_capacity_in_cc_log,
                 "horsepower_in_hp_log": car.horsepower_in_hp_log,
@@ -233,10 +245,16 @@ async def predict_batch(cars: List[CarPredictionRequest]):
                 "torque_in_nm_log": car.torque_in_nm_log,
                 "torque_in_nm_2_log": car.torque_in_nm_2_log,
             }
-
-            # Realizar predicción
             resultado = car_service.predecir_auto(datos_entrada)
             resultados.append(resultado)
+
+        return {"predicciones": resultados, "total": len(resultados)}
+
+    except Exception as e:
+        logger.error(f"Error en predicción por lotes: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error en predicción por lotes: {str(e)}"
+        )
 
 @app.get("/model/info")
 async def get_model_info():
@@ -250,7 +268,11 @@ async def get_model_info():
         "columnas_categoricas": car_service.columnas_categoricas,
         "modelo_regresion": "Random Forest",
         "modelo_clasificacion": "Logistic Regression",
-        "total_datos_entrenamiento": len(car_service.datos_entrenamiento) if car_service.datos_entrenamiento is not None else 0
+        "total_datos_entrenamiento": (
+            len(car_service.datos_entrenamiento)
+            if car_service.datos_entrenamiento is not None
+            else 0
+        ),
     }
 
 @app.post("/model/load")
@@ -261,17 +283,22 @@ async def load_trained_models():
         if success:
             return {"message": "Modelos cargados exitosamente", "trained": True}
         else:
-            raise HTTPException(status_code=500, detail="No se pudieron cargar los modelos")
+            raise HTTPException(
+                status_code=500, detail="No se pudieron cargar los modelos"
+            )
     except Exception as e:
         logger.error(f"Error al cargar modelos: {e}")
-        raise HTTPException(status_code=500, detail=f"Error al cargar modelos: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error al cargar modelos: {str(e)}"
+        )
 
 def convert_value(key, value):
     """Convierte el valor según el tipo esperado"""
     if value is None:
         return None
+    if isinstance(value, Decimal):
+        value = float(value)
 
-    # Mapeo de tipos para las columnas transformadas
     type_map = {
         "engine_capacity_in_cc_log": float,
         "horsepower_in_hp_log": float,
@@ -288,41 +315,37 @@ def convert_value(key, value):
     }
 
     try:
-        converter = type_map.get(key, str)
-        return converter(value)
-    except (ValueError, TypeError):
-        return None
+        return type_map.get(key, str)(value)
+    except Exception:
+        return value
 
 async def entrenar_modelos_automaticamente(db_pool):
     """Entrena modelos automáticamente al inicio"""
     try:
         async with db_pool.acquire() as connection:
-            # Cargar datos desde la base de datos
             rows = await connection.fetch("SELECT * FROM cars_data")
-            df = pd.DataFrame(rows)
+            data = [dict(row) for row in rows]
+            df = pd.DataFrame(data)
 
-            if len(df) == 0:
+            if df.empty:
                 logger.warning("No hay datos en la base de datos")
                 return
 
-            # Preparar datos
             X, y_reg, y_clf = car_service.preparar_datos(df)
 
-            # Dividir datos
-            from sklearn.model_selection import train_test_split
+            # Split único y consistente
             X_train, X_test, y_train_reg, y_test_reg = train_test_split(
                 X, y_reg, test_size=0.2, random_state=42
             )
-            X_train, X_test, y_train_clf, y_test_clf = train_test_split(
-                X, y_clf, test_size=0.2, random_state=42
+            y_train_clf, y_test_clf = (
+                y_clf.loc[X_train.index],
+                y_clf.loc[X_test.index],
             )
 
-            # Entrenar modelos
             car_service.entrenar_modelos(
                 X_train, y_train_reg, X_test, y_test_reg, y_train_clf, y_test_clf
             )
 
-            # Guardar modelos
             car_service.guardar_modelos()
 
     except Exception as e:

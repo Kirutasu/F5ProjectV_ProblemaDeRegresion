@@ -1,225 +1,202 @@
-# -*- coding: utf-8 -*-
-"""
-Definitivo Factorizado Modelo Grupo 6 - Machine Learning
-
-Entrena y evalúa modelos de regresión y clasificación
-para predecir precios de automóviles usando la tabla cars_data.
-"""
-
-# ----------------------------
-# Importación de librerías optimizadas
-# ----------------------------
-import numpy as np
-import pandas as pd
-
-# Visualización
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-# Preprocesamiento y modelado
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-
-# Modelos
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
-from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-
-# Evaluación de modelos
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import (
-    mean_squared_error,
-    r2_score,
-    accuracy_score,
-    classification_report,
-    confusion_matrix,
-)
-
-# Producción
+# modelo_final.py
 import joblib
+import pandas as pd
+import numpy as np
+from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, classification_report, confusion_matrix
+import logging
 
-# Configuración global
-RANDOM_STATE = 42
-TEST_SIZE = 0.2
-
+# Configurar logging
+logger = logging.getLogger(__name__)
 
 class AutomovilesModelEnhanced:
-    def __init__(self, ruta_dataset: str):
-        self.ruta_dataset = ruta_dataset
-        self.df = None
+    def __init__(self):
         self.modelo_regresion = None
         self.modelo_clasificacion = None
-        self.preprocesador = None
+        self.is_trained = False
+        self.columnas_esperadas = None
+        
+        # Cargar modelos al inicializar
+        self.cargar_modelos_preentrenados()
 
-    def cargar_datos(self):
-        """Carga y muestra información básica del dataset"""
-        self.df = pd.read_csv(self.ruta_dataset)
-        print(
-            f"✅ Dataset cargado: {self.df.shape[0]} filas × {self.df.shape[1]} columnas"
-        )
-        return self.df
+    def cargar_modelos_preentrenados(self):
+        """Carga los modelos pre-entrenados desde los archivos .pkl"""
+        try:
+            # Cargar modelo de regresión
+            self.modelo_regresion = joblib.load('clean/mejor_modelo_regresion_Linear_Regression.pkl')
+            logger.info("✅ Modelo de regresión (Linear Regression) cargado correctamente")
+            
+            # Cargar modelo de clasificación
+            self.modelo_clasificacion = joblib.load('clean/mejor_modelo_clasificacion_Decision_Tree.pkl')
+            logger.info("✅ Modelo de clasificación (Decision Tree) cargado correctamente")
+            
+            # Establecer como entrenado
+            self.is_trained = True
+            
+            # Obtener las columnas esperadas del preprocesador
+            self._obtener_columnas_esperadas()
+            
+        except FileNotFoundError as e:
+            logger.error(f"❌ Error al cargar modelos: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Error inesperado al cargar modelos: {e}")
+            raise
 
-    def preparar_datos(self):
-        """Prepara los datos para modelado creando variables objetivo"""
-        df = self.df.copy()
+    def _obtener_columnas_esperadas(self):
+        """Obtiene las columnas esperadas por el preprocesador del modelo"""
+        try:
+            if hasattr(self.modelo_regresion, 'named_steps'):
+                preprocesador = self.modelo_regresion.named_steps.get('preprocesador')
+                if hasattr(preprocesador, 'feature_names_in_'):
+                    self.columnas_esperadas = list(preprocesador.feature_names_in_)
+                    logger.info(f"✅ Columnas esperadas: {self.columnas_esperadas}")
+        except Exception as e:
+            logger.warning(f"⚠️ No se pudieron obtener las columnas esperadas: {e}")
 
-        # Normalizamos nombres de columnas a minúsculas
-        df.columns = df.columns.str.lower()
-
-        # Verificación de columna de precio
-        if "price_max_log" not in df.columns:
-            raise ValueError(
-                "❌ La columna 'price_max_log' no se encontró en la tabla."
-            )
-
+    def preparar_datos(self, df):
+        """Prepara los datos para compatibilidad con los modelos"""
+        # Hacer una copia para no modificar el original
+        df_preparado = df.copy()
+        
+        # Normalizar nombres de columnas a minúsculas
+        df_preparado.columns = df_preparado.columns.str.lower()
+        
+        # Verificar columnas de precio
+        columnas_precio = [col for col in df_preparado.columns if 'price' in col]
+        if not columnas_precio:
+            raise ValueError("❌ No se encontraron columnas de precio en el dataset")
+        
+        # Usar la primera columna de precio encontrada
+        columna_precio = columnas_precio[0]
+        logger.info(f"✅ Usando columna de precio: {columna_precio}")
+        
         # Crear variable de clasificación si no existe
-        if "precio_alto" not in df.columns:
-            precio_mediano = df["price_max_log"].median()
-            df["precio_alto"] = (df["price_max_log"] > precio_mediano).astype(int)
-            print(f"✅ Variable 'precio_alto' creada (umbral: {precio_mediano:.2f})")
-
+        if 'precio_alto' not in df_preparado.columns:
+            precio_mediano = df_preparado[columna_precio].median()
+            df_preparado['precio_alto'] = (df_preparado[columna_precio] > precio_mediano).astype(int)
+            logger.info(f"✅ Variable 'precio_alto' creada (umbral: {precio_mediano:.2f})")
+        
         # Separar características y objetivos
-        columnas_objetivo = ["price_max_log", "precio_alto", "precio_categoria"]
-        caracteristicas = df.drop(columnas_objetivo, axis=1, errors="ignore")
-        objetivo_reg = df["price_max_log"]
-        objetivo_clf = df["precio_alto"]
+        columnas_excluir = [columna_precio, 'precio_alto', 'precio_categoria']
+        caracteristicas = df_preparado.drop([col for col in columnas_excluir if col in df_preparado.columns], 
+                                          axis=1, errors='ignore')
+        objetivo_reg = df_preparado[columna_precio]
+        objetivo_clf = df_preparado['precio_alto']
+        
+        logger.info(f"✅ Datos preparados - Características: {caracteristicas.shape}")
+        return caracteristicas, objetivo_reg, objetivo_clf
 
-        # Identificar tipos de columnas
-        columnas_numericas = caracteristicas.select_dtypes(
-            include=["int64", "float64"]
-        ).columns.tolist()
-        columnas_categoricas = caracteristicas.select_dtypes(
-            include=["object", "category"]
-        ).columns.tolist()
+    def predecir_auto(self, datos_entrada):
+        """Realiza predicciones para un automóvil"""
+        try:
+            if not self.is_trained:
+                raise ValueError("❌ Los modelos no están cargados correctamente")
+            
+            # Convertir datos de entrada a DataFrame
+            datos_df = pd.DataFrame([datos_entrada])
+            
+            # Asegurar que las columnas estén en minúsculas
+            datos_df.columns = datos_df.columns.str.lower()
+            
+            logger.info(f"🔮 Realizando predicción para: {datos_entrada.get('brand', 'Unknown')} {datos_entrada.get('model', 'Unknown')}")
+            
+            # Realizar predicciones
+            precio_predicho = self.modelo_regresion.predict(datos_df)[0]
+            categoria_predicha = self.modelo_clasificacion.predict(datos_df)[0]
+            probabilidades = self.modelo_clasificacion.predict_proba(datos_df)[0]
+            
+            # Preparar respuesta
+            resultado = {
+                'precio_predicho': float(precio_predicho),
+                'precio_alto_predicho': int(categoria_predicha),
+                'probabilidad_precio_alto': float(probabilidades[1]),
+                'categoria_predicha': 'Alto' if categoria_predicha == 1 else 'Bajo',
+                'modelo_utilizado': 'Linear Regression + Decision Tree (Pre-entrenado)',
+                'estado': 'success'
+            }
+            
+            logger.info(f"✅ Predicción exitosa: {resultado['categoria_predicha']} (${resultado['precio_predicho']:.2f})")
+            return resultado
+            
+        except Exception as e:
+            logger.error(f"❌ Error en predicción: {e}")
+            return {
+                'precio_predicho': 0.0,
+                'precio_alto_predicho': 0,
+                'probabilidad_precio_alto': 0.0,
+                'categoria_predicha': 'Error',
+                'modelo_utilizado': 'N/A',
+                'estado': 'error',
+                'error': str(e)
+            }
 
-        print(
-            f"✅ Características: {len(columnas_numericas)} numéricas, {len(columnas_categoricas)} categóricas"
-        )
-        return (
-            caracteristicas,
-            objetivo_reg,
-            objetivo_clf,
-            columnas_numericas,
-            columnas_categoricas,
-        )
+    def evaluar_modelos(self, X_test, y_test_reg, y_test_clf):
+        """Evalúa los modelos con datos de prueba"""
+        try:
+            if not self.is_trained:
+                raise ValueError("❌ Los modelos no están cargados correctamente")
+            
+            # Predicciones de regresión
+            y_pred_reg = self.modelo_regresion.predict(X_test)
+            rmse = np.sqrt(mean_squared_error(y_test_reg, y_pred_reg))
+            r2 = r2_score(y_test_reg, y_pred_reg)
+            
+            # Predicciones de clasificación
+            y_pred_clf = self.modelo_clasificacion.predict(X_test)
+            accuracy = accuracy_score(y_test_clf, y_pred_clf)
+            
+            resultados = {
+                'regression': {
+                    'RMSE': float(rmse),
+                    'R2': float(r2),
+                    'MAE': float(np.mean(np.abs(y_test_reg - y_pred_reg)))
+                },
+                'classification': {
+                    'Accuracy': float(accuracy),
+                    'Report': classification_report(y_test_clf, y_pred_clf, output_dict=True)
+                }
+            }
+            
+            logger.info(f"📊 Evaluación completada - RMSE: {rmse:.4f}, Accuracy: {accuracy:.4f}")
+            return resultados
+            
+        except Exception as e:
+            logger.error(f"❌ Error en evaluación: {e}")
+            raise
 
-    def crear_pipeline_preprocesamiento(self, columnas_numericas, columnas_categoricas):
-        """Crea el pipeline de preprocesamiento"""
-        transformador_numerico = Pipeline(
-            steps=[
-                ("imputador", SimpleImputer(strategy="median")),
-                ("escalador", StandardScaler()),
-            ]
-        )
+# Instancia global para usar en la API
+car_service_final = AutomovilesModelEnhanced()
 
-        transformador_categorico = (
-            Pipeline(
-                steps=[
-                    (
-                        "imputador",
-                        SimpleImputer(strategy="constant", fill_value="missing"),
-                    ),
-                    (
-                        "onehot",
-                        OneHotEncoder(handle_unknown="ignore", sparse_output=False),
-                    ),
-                ]
-            )
-            if columnas_categoricas
-            else "passthrough"
-        )
+# Funciones de compatibilidad con el main.py existente
+def predecir_auto(datos_entrada):
+    """Función de compatibilidad para la API"""
+    return car_service_final.predecir_auto(datos_entrada)
 
-        self.preprocesador = ColumnTransformer(
-            transformers=[
-                ("numerico", transformador_numerico, columnas_numericas),
-                ("categorico", transformador_categorico, columnas_categoricas),
-            ]
-        )
-        print("✅ Pipeline de preprocesamiento creado")
-        return self.preprocesador
+def preparar_datos(df):
+    """Función de compatibilidad para la API"""
+    return car_service_final.preparar_datos(df)
 
-    def entrenar_modelos(self, X, y_reg, y_clf):
-        """Entrena modelos de regresión y clasificación"""
-        X_train, X_test, y_train_reg, y_test_reg = train_test_split(
-            X, y_reg, test_size=TEST_SIZE, random_state=RANDOM_STATE
-        )
-        _, _, y_train_clf, y_test_clf = train_test_split(
-            X, y_clf, test_size=TEST_SIZE, random_state=RANDOM_STATE
-        )
+def entrenar_modelos(X_train, y_train_reg, X_test, y_test_reg, y_train_clf, y_test_clf):
+    """Función de compatibilidad - No necesaria para modelos pre-entrenados"""
+    logger.info("⚠️ Los modelos ya están pre-entrenados, no se requiere entrenamiento adicional")
+    return True
 
-        # Modelos
-        self.modelo_regresion = Pipeline(
-            steps=[
-                ("preprocesador", self.preprocesador),
-                (
-                    "modelo",
-                    RandomForestRegressor(
-                        n_estimators=200, max_depth=10, random_state=RANDOM_STATE
-                    ),
-                ),
-            ]
-        )
+def guardar_modelos():
+    """Función de compatibilidad - No necesaria para modelos pre-entrenados"""
+    logger.info("⚠️ Los modelos ya están guardados como archivos .pkl")
+    pass
 
-        self.modelo_clasificacion = Pipeline(
-            steps=[
-                ("preprocesador", self.preprocesador),
-                ("modelo", LogisticRegression(random_state=RANDOM_STATE)),
-            ]
-        )
-
-        # Entrenamiento
-        print("⏳ Entrenando modelo de regresión...")
-        self.modelo_regresion.fit(X_train, y_train_reg)
-
-        print("⏳ Entrenando modelo de clasificación...")
-        self.modelo_clasificacion.fit(X_train, y_train_clf)
-
-        # Evaluación
-        y_pred_reg = self.modelo_regresion.predict(X_test)
-        y_pred_clf = self.modelo_clasificacion.predict(X_test)
-
-        rmse = np.sqrt(mean_squared_error(y_test_reg, y_pred_reg))
-        r2 = r2_score(y_test_reg, y_pred_reg)
-        accuracy = accuracy_score(y_test_clf, y_pred_clf)
-
-        print(f"📊 Resultados Regresión -> RMSE: {rmse:.4f}, R²: {r2:.4f}")
-        print(f"📊 Resultados Clasificación -> Accuracy: {accuracy:.4f}")
-        print(
-            "\nReporte de clasificación:\n",
-            classification_report(y_test_clf, y_pred_clf),
-        )
-        print("Matriz de confusión:\n", confusion_matrix(y_test_clf, y_pred_clf))
-
+def cargar_modelos():
+    """Función de compatibilidad para la API"""
+    try:
+        car_service_final.cargar_modelos_preentrenados()
         return True
+    except Exception as e:
+        logger.error(f"❌ Error al cargar modelos: {e}")
+        return False
 
-    def guardar_modelos(self, ruta_base="models"):
-        """Guarda los modelos entrenados"""
-        import os
-
-        os.makedirs(ruta_base, exist_ok=True)
-        joblib.dump(self.modelo_regresion, f"{ruta_base}/modelo_regresion.pkl")
-        joblib.dump(self.modelo_clasificacion, f"{ruta_base}/modelo_clasificacion.pkl")
-        joblib.dump(self.preprocesador, f"{ruta_base}/preprocesador.pkl")
-        print(f"💾 Modelos guardados en {ruta_base}/")
-
-    def cargar_modelos(self, ruta_base="models"):
-        """Carga modelos previamente guardados"""
-        self.modelo_regresion = joblib.load(f"{ruta_base}/modelo_regresion.pkl")
-        self.modelo_clasificacion = joblib.load(f"{ruta_base}/modelo_clasificacion.pkl")
-        self.preprocesador = joblib.load(f"{ruta_base}/preprocesador.pkl")
-        print("✅ Modelos cargados correctamente")
-
-
-# Ejemplo de uso
-if __name__ == "__main__":
-    ruta = "cars_data.csv"  # Exporta tu tabla a CSV o conéctala vía SQL
-    modelo = AutomovilesModelEnhanced(ruta)
-
-    df = modelo.cargar_datos()
-    X, y_reg, y_clf, cols_num, cols_cat = modelo.preparar_datos()
-    modelo.crear_pipeline_preprocesamiento(cols_num, cols_cat)
-    modelo.entrenar_modelos(X, y_reg, y_clf)
-    modelo.guardar_modelos()
+# Atributos esperados por main.py
+is_trained = car_service_final.is_trained
+datos_entrenamiento = None
+columnas_numericas = car_service_final.columnas_esperadas or []
+columnas_categoricas = []

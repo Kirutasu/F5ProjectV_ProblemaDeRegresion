@@ -1,8 +1,4 @@
-# backend/ml_service_final.py
-"""
-Servicio ML basado en el modelo final del usuario
-Integrado con FastAPI para predicciones de precios de automóviles
-"""
+# ml_service_final.py
 import pandas as pd
 import numpy as np
 import joblib
@@ -20,7 +16,6 @@ import logging
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 class CarPredictionServiceFinal:
     """Servicio de predicción de precios de automóviles"""
@@ -54,19 +49,39 @@ class CarPredictionServiceFinal:
         # Normalizar nombres de columnas
         df.columns = df.columns.str.lower()
 
+        # Crear variables objetivo si no existen
+        if "precio_alto" not in df.columns and "price_max" in df.columns:
+            # Crear variable binaria para clasificación
+            precio_mediano = df["price_max"].median()
+            df["precio_alto"] = (df["price_max"] > precio_mediano).astype(int)
+            
+            # Crear categorías de precio
+            q1 = df["price_max"].quantile(0.33)
+            q2 = df["price_max"].quantile(0.66)
+            
+            def categorizar_precio(precio):
+                if precio <= q1:
+                    return "Bajo"
+                elif precio <= q2:
+                    return "Medio"
+                else:
+                    return "Alto"
+            
+            df["precio_categoria"] = df["price_max"].apply(categorizar_precio)
+
         # Confirmar columnas críticas
-        if "price_max_log" not in df.columns or "precio_alto" not in df.columns:
+        if "price_max" not in df.columns or "precio_alto" not in df.columns:
             raise ValueError(
                 f"Faltan columnas críticas en DataFrame: {list(df.columns)}"
             )
 
         # Separar características y objetivos
         caracteristicas = df.drop(
-            ["price_max_log", "precio_alto", "precio_categoria"],
+            ["price_max", "precio_alto", "precio_categoria", "id"],
             axis=1,
             errors="ignore",
         )
-        objetivo_reg = df["price_max_log"]
+        objetivo_reg = df["price_max"]
         objetivo_clf = df["precio_alto"]
 
         # Identificar tipos de columnas
@@ -185,28 +200,20 @@ class CarPredictionServiceFinal:
             df_entrada = pd.DataFrame([datos_entrada])
             
             # Agregar columnas faltantes con valores por defecto
-            if 'id' not in df_entrada.columns:
-                df_entrada['id'] = 0  # ID dummy para predicción
+            columnas_esperadas = self.columnas_numericas + self.columnas_categoricas
             
-            if 'seats_cat' not in df_entrada.columns:
-                df_entrada['seats_cat'] = 'unknown'  # Categoría por defecto
-            
-            # Asegurar que todas las columnas esperadas estén presentes
-            for col in self.columnas_numericas:
+            for col in columnas_esperadas:
                 if col not in df_entrada.columns:
-                    df_entrada[col] = 0.0
-                    
-            for col in self.columnas_categoricas:
-                if col not in df_entrada.columns:
-                    df_entrada[col] = 'unknown'
+                    if col in self.columnas_numericas:
+                        df_entrada[col] = 0.0
+                    else:
+                        df_entrada[col] = 'unknown'
             
             # Reordenar columnas para que coincidan con el entrenamiento
-            todas_columnas = self.columnas_numericas + self.columnas_categoricas
-            df_entrada = df_entrada[todas_columnas]
+            df_entrada = df_entrada[columnas_esperadas]
             
-            precio_predicho_log = self.modelo_regresion.predict(df_entrada)[0]
+            precio_predicho = self.modelo_regresion.predict(df_entrada)[0]
             categoria_predicha = self.modelo_clasificacion.predict(df_entrada)[0]
-            precio_predicho = np.exp(precio_predicho_log)
 
             if hasattr(self.modelo_clasificacion, "predict_proba"):
                 proba_alto = self.modelo_clasificacion.predict_proba(df_entrada)[0][1]
@@ -255,7 +262,6 @@ class CarPredictionServiceFinal:
         except Exception as e:
             logger.error(f"Error al cargar modelos: {e}")
             return False
-
 
 # Instancia global del servicio
 car_service_final = CarPredictionServiceFinal()

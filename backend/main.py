@@ -22,21 +22,20 @@ logger = logging.getLogger(__name__)
 # asyncpg requiere el esquema postgresql:// (no postgres://)
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://myuser:mypass@db:5432/mydb")
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manejar startup y shutdown de la aplicación"""
     try:
         # Conectar a la base de datos
-        app.state.db = await asyncpg.create_pool(DATABASE_URL)
+        #app.state.db = await asyncpg.create_pool(DATABASE_URL)
 
         # Entrenar modelos automáticamente al inicio
-        try:
-            logger.info("Iniciando entrenamiento automático de modelos...")
-            await entrenar_modelos_automaticamente(app.state.db)
-            logger.info("Modelos entrenados exitosamente")
-        except Exception as e:
-            logger.warning(f"No se pudieron entrenar los modelos automáticamente: {e}")
+        #try:
+        #    logger.info("Iniciando entrenamiento automático de modelos...")
+        #    await entrenar_modelos_automaticamente(app.state.db)
+        #    logger.info("Modelos entrenados exitosamente")
+        #except Exception as e:
+        #    logger.warning(f"No se pudieron entrenar los modelos automáticamente: {e}")
 
     except Exception as e:
         logger.error(f"Error al conectarse a la base de datos: {e}")
@@ -47,7 +46,6 @@ async def lifespan(app: FastAPI):
     # Cleanup
     if hasattr(app.state, "db"):
         await app.state.db.close()
-
 
 app = FastAPI(
     title="API de Predicción de Precios de Automóviles",
@@ -64,12 +62,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.get("/health")
 async def health_check():
     """Verificar estado de la API"""
     return {"status": "healthy", "models_trained": car_service.is_trained}
-
 
 @app.get("/cars", response_model=List[Car])
 async def get_cars(limit: int = 100):
@@ -83,13 +79,14 @@ async def get_cars(limit: int = 100):
             cars.append(Car(**car_data))
         return cars
 
-
 @app.get("/cars/filter", response_model=List[Car])
 async def get_cars_filtered(
     limit: int = 300,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     precio_alto: Optional[int] = None,
+    brand: Optional[str] = None,
+    fuel_type: Optional[str] = None,
 ):
     """Devuelve autos filtrados por criterios"""
     query = "SELECT * FROM cars_data WHERE 1=1"
@@ -107,6 +104,14 @@ async def get_cars_filtered(
         query += f" AND precio_alto = ${len(params) + 1}"
         params.append(precio_alto)
 
+    if brand is not None:
+        query += f" AND brand = ${len(params) + 1}"
+        params.append(brand)
+
+    if fuel_type is not None:
+        query += f" AND fuel_type = ${len(params) + 1}"
+        params.append(fuel_type)
+
     query += f" LIMIT {limit}"
 
     async with app.state.db.acquire() as connection:
@@ -118,20 +123,20 @@ async def get_cars_filtered(
             cars.append(Car(**car_data))
         return cars
 
-
 @app.post("/predict", response_model=CarPredictionResponse)
 async def predict_car_price(request: CarPredictionRequest):
     """Predice el precio de un automóvil basado en sus características"""
     try:
         datos_entrada = {
-            "engine_capacity_in_cc_log": request.engine_capacity_in_cc_log,
-            "horsepower_in_hp_log": request.horsepower_in_hp_log,
-            "horsepower_in_hp_2_log": request.horsepower_in_hp_2_log,
-            "max_speed_in_km_h_boxcox": request.max_speed_in_km_h_boxcox,
-            "time_to_100kmph_sec_reciprocal": request.time_to_100kmph_sec_reciprocal,
-            "seats_yeojohnson": request.seats_yeojohnson,
-            "torque_in_nm_log": request.torque_in_nm_log,
-            "torque_in_nm_2_log": request.torque_in_nm_2_log,
+            "brand": request.brand,
+            "model": request.model,
+            "engine_capacity": request.engine_capacity,
+            "horsepower": request.horsepower,
+            "max_speed": request.max_speed,
+            "time_to_100": request.time_to_100,
+            "seats": request.seats,
+            "torque": request.torque,
+            "fuel_type": request.fuel_type,
         }
 
         resultado = car_service.predecir_auto(datos_entrada)
@@ -141,51 +146,15 @@ async def predict_car_price(request: CarPredictionRequest):
         logger.error(f"Error en predicción: {e}")
         raise HTTPException(status_code=500, detail=f"Error en predicción: {str(e)}")
 
-
 @app.post("/train")
 async def train_models():
-    """Entrena los modelos de ML con los datos de la base de datos."""
-    try:
-        async with app.state.db.acquire() as conn:
-            rows = await conn.fetch("SELECT * FROM cars_data")
-            data = [dict(row) for row in rows]
-            df = pd.DataFrame(data)
-
-            if df.empty:
-                return {"success": False, "message": "No hay datos en la base de datos"}
-
-        logger.info(f"Columnas del DataFrame: {list(df.columns)}")
-
-        X, y_reg, y_clf = car_service.preparar_datos(df)
-
-        # Split único y consistente
-        X_train, X_test, y_train_reg, y_test_reg = train_test_split(
-            X, y_reg, test_size=0.2, random_state=42
-        )
-        y_train_clf, y_test_clf = (
-            y_clf.loc[X_train.index],
-            y_clf.loc[X_test.index],
-        )
-
-        success = car_service.entrenar_modelos(
-            X_train, y_train_reg, X_test, y_test_reg, y_train_clf, y_test_clf
-        )
-
-        if success:
-            car_service.guardar_modelos()
-            return {
-                "success": True,
-                "message": "Modelos entrenados y guardados exitosamente",
-            }
-        else:
-            return {"success": False, "message": "Error al entrenar los modelos"}
-
-    except Exception as e:
-        logger.error(f"Error al entrenar modelos: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Error al entrenar modelos: {str(e)}"
-        )
-
+    """Endpoint informativo - Los modelos ya están pre-entrenados"""
+    return {
+        "success": True,
+        "message": "Los modelos ya están pre-entrenados. No se requiere entrenamiento adicional.",
+        "modelo_regresion": "Linear Regression (Pre-entrenado)",
+        "modelo_clasificacion": "Decision Tree (Pre-entrenado)"
+    }
 
 @app.get("/cars/stats")
 async def get_cars_stats():
@@ -195,39 +164,52 @@ async def get_cars_stats():
             stats_query = """
             SELECT
                 COUNT(*) as total_registros,
-                AVG(price_max_log) as precio_promedio_log,
-                MIN(price_max_log) as precio_min_log,
-                MAX(price_max_log) as precio_max_log,
-                AVG(engine_capacity_in_cc_log) as motor_promedio,
-                AVG(horsepower_in_hp_log) as potencia_promedio,
-                COUNT(DISTINCT precio_categoria) as categorias_unicas,
-                COUNT(DISTINCT seats_cat) as tipos_asientos
+                AVG(price_max) as precio_promedio,
+                MIN(price_max) as precio_min,
+                MAX(price_max) as precio_max,
+                AVG(engine_capacity) as motor_promedio,
+                AVG(horsepower) as potencia_promedio,
+                COUNT(DISTINCT brand) as marcas_unicas,
+                COUNT(DISTINCT fuel_type) as tipos_combustible
             FROM cars_data
             """
             stats_result = await connection.fetchrow(stats_query)
 
-            category_query = """
-            SELECT precio_categoria, COUNT(*) as cantidad
+            brand_query = """
+            SELECT brand, COUNT(*) as cantidad
             FROM cars_data
-            GROUP BY precio_categoria
+            GROUP BY brand
+            ORDER BY cantidad DESC
+            LIMIT 10
+            """
+            brand_result = await connection.fetch(brand_query)
+
+            fuel_query = """
+            SELECT fuel_type, COUNT(*) as cantidad
+            FROM cars_data
+            GROUP BY fuel_type
             ORDER BY cantidad DESC
             """
-            category_result = await connection.fetch(category_query)
+            fuel_result = await connection.fetch(fuel_query)
 
             return {
                 "estadisticas": {
                     "total_registros": stats_result["total_registros"],
-                    "precio_promedio_log": float(stats_result["precio_promedio_log"]),
-                    "precio_min_log": float(stats_result["precio_min_log"]),
-                    "precio_max_log": float(stats_result["precio_max_log"]),
+                    "precio_promedio": float(stats_result["precio_promedio"]),
+                    "precio_min": float(stats_result["precio_min"]),
+                    "precio_max": float(stats_result["precio_max"]),
                     "motor_promedio": float(stats_result["motor_promedio"]),
                     "potencia_promedio": float(stats_result["potencia_promedio"]),
-                    "categorias_unicas": stats_result["categorias_unicas"],
-                    "tipos_asientos": stats_result["tipos_asientos"],
+                    "marcas_unicas": stats_result["marcas_unicas"],
+                    "tipos_combustible": stats_result["tipos_combustible"],
                 },
-                "distribucion_categorias": [
-                    {"categoria": row["precio_categoria"], "cantidad": row["cantidad"]}
-                    for row in category_result
+                "marcas_populares": [
+                    {"marca": row["brand"], "cantidad": row["cantidad"]}
+                    for row in brand_result
+                ],
+                "distribucion_combustible": [
+                    {"combustible": row["fuel_type"], "cantidad": row["cantidad"]}
+                    for row in fuel_result
                 ],
             }
 
@@ -237,7 +219,6 @@ async def get_cars_stats():
             status_code=500, detail=f"Error al obtener estadísticas: {str(e)}"
         )
 
-
 @app.post("/predict/batch")
 async def predict_batch(cars: List[CarPredictionRequest]):
     """Realiza predicciones para múltiples automóviles"""
@@ -245,14 +226,15 @@ async def predict_batch(cars: List[CarPredictionRequest]):
         resultados = []
         for car in cars:
             datos_entrada = {
-                "engine_capacity_in_cc_log": car.engine_capacity_in_cc_log,
-                "horsepower_in_hp_log": car.horsepower_in_hp_log,
-                "horsepower_in_hp_2_log": car.horsepower_in_hp_2_log,
-                "max_speed_in_km_h_boxcox": car.max_speed_in_km_h_boxcox,
-                "time_to_100kmph_sec_reciprocal": car.time_to_100kmph_sec_reciprocal,
-                "seats_yeojohnson": car.seats_yeojohnson,
-                "torque_in_nm_log": car.torque_in_nm_log,
-                "torque_in_nm_2_log": car.torque_in_nm_2_log,
+                "brand": car.brand,
+                "model": car.model,
+                "engine_capacity": car.engine_capacity,
+                "horsepower": car.horsepower,
+                "max_speed": car.max_speed,
+                "time_to_100": car.time_to_100,
+                "seats": car.seats,
+                "torque": car.torque,
+                "fuel_type": car.fuel_type,
             }
             resultado = car_service.predecir_auto(datos_entrada)
             resultados.append(resultado)
@@ -264,7 +246,6 @@ async def predict_batch(cars: List[CarPredictionRequest]):
         raise HTTPException(
             status_code=500, detail=f"Error en predicción por lotes: {str(e)}"
         )
-
 
 @app.get("/model/info")
 async def get_model_info():
@@ -285,7 +266,6 @@ async def get_model_info():
         ),
     }
 
-
 @app.post("/model/load")
 async def load_trained_models():
     """Carga modelos pre-entrenados desde archivos"""
@@ -303,7 +283,6 @@ async def load_trained_models():
             status_code=500, detail=f"Error al cargar modelos: {str(e)}"
         )
 
-
 def convert_value(key, value):
     """Convierte el valor según el tipo esperado"""
     if value is None:
@@ -312,25 +291,25 @@ def convert_value(key, value):
         value = float(value)
 
     type_map = {
-        "engine_capacity_in_cc_log": float,
-        "horsepower_in_hp_log": float,
-        "horsepower_in_hp_2_log": float,
-        "max_speed_in_km_h_boxcox": float,
-        "time_to_100kmph_sec_reciprocal": float,
-        "price_max_log": float,
-        "seats_yeojohnson": float,
-        "torque_in_nm_log": float,
-        "torque_in_nm_2_log": float,
+        "id": int,
+        "brand": str,
+        "model": str,
+        "engine_capacity": float,
+        "horsepower": float,
+        "max_speed": float,
+        "time_to_100": float,
+        "price_max": float,
+        "seats": int,
+        "torque": float,
+        "fuel_type": str,
         "precio_alto": int,
         "precio_categoria": str,
-        "seats_cat": str,
     }
 
     try:
         return type_map.get(key, str)(value)
     except Exception:
         return value
-
 
 async def entrenar_modelos_automaticamente(db_pool):
     """Entrena modelos automáticamente al inicio"""
