@@ -1,0 +1,39 @@
+{
+    "dataset": {
+        "ruta": "C:\\Users\\Coder\\Documents\\REGRESIONES\\F5ProjectV_ProblemaDeRegresion\\data\\dataset_modelado_optimizado.csv",
+        "filas": 1217,
+        "columnas": 16,
+        "columnas_numericas": [
+            "id",
+            "Engine_capacity_in_cc",
+            "HorsePower_in_HP",
+            "HorsePower_in_HP_2",
+            "Max_speed_in_km/h",
+            "Time_to_100kmph_sec",
+            "Price_Min",
+            "Price_Max",
+            "Seats",
+            "Torque_in_Nm",
+            "Torque_in_Nm_2",
+            "Precio_Alto"
+        ],
+        "columnas_categoricas": [
+            "Brands",
+            "Model",
+            "Engines",
+            "Fuel_1"
+        ]
+    },
+    "modelos": {
+        "regresion": {
+            "nombre": "Linear_Regression",
+            "ruta": "mejor_modelo_regresion_Linear_Regression.pkl"
+        },
+        "clasificacion": {
+            "nombre": "Decision_Tree",
+            "ruta": "mejor_modelo_clasificacion_Decision_Tree.pkl"
+        }
+    },
+    "fecha_entrenamiento": "2025-09-26",
+    "autor": "AutomovilesModelEnhanced"
+}
