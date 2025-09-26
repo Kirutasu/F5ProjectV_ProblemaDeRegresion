@@ -1,0 +1,19 @@
+fastapi==0.117.1
+uvicorn[standard]==0.36.0
+asyncpg==0.30.0
+python-dotenv==1.1.1
+pandas==2.2.3
+scikit-learn==1.5.2
+numpy==2.0.2
+joblib==1.4.2
+pydantic==2.10.4
+
+# fastapi: framework para crear APIs REST.
+# uvicorn[standard]: servidor ASGI para ejecutar FastAPI.
+# asyncpg: librería asíncrona para conectarse a PostgreSQL.
+# python-dotenv: permite leer variables de entorno desde .env.
+# pandas: manipulación y análisis de datos.
+# scikit-learn: machine learning y modelado predictivo.
+# numpy: computación numérica.
+# joblib: serialización de modelos de ML.
+# pydantic: validación de datos y modelos.
