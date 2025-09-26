@@ -242,305 +242,423 @@ class StreamlitCarPredictionApp:
         
         return best_reg_name, best_clf_name, regression_results, classification_results
 
+def login_page():
+        """Página de inicio de sesión."""
+        st.subheader("Iniciar Sesión")
+        with st.form("login_form"):
+            username = st.text_input("Usuario")
+            password = st.text_input("Contraseña", type="password")
+            submitted = st.form_submit_button("Entrar")
+            
+            if submitted:
+                # Lógica de autenticación simple
+                if username == "admin" and password == "password123":
+                    st.session_state.logged_in = True
+                    st.success("¡Inicio de sesión exitoso!")
+                    st.rerun()
+                else:
+                    st.error("Usuario o contraseña incorrectos.")
+                    
+def navigation_bar():
+    st.markdown("""
+        <style>
+            .navbar {
+                display: flex;
+                justify-content: flex-start;
+                padding: 10px;
+                background-color: #f0f2f6;
+                border-radius: 10px;
+                margin-bottom: 20px;
+            }
+            .nav-button {
+                margin: 0 10px;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    with st.container():
+        cols = st.columns([1, 1, 1, 5])
+        with cols[0]:
+            if st.button("Inicio", key="nav_home"):
+                st.session_state.page = "home"
+        with cols[1]:
+            if st.button("Historial", key="nav_history"):
+                st.session_state.page = "history"
+        with cols[2]:
+            if st.button("Perfil", key="nav_profile"):
+                st.session_state.page = "profile"
+
+    
 def main():
     app = StreamlitCarPredictionApp()
+    
+    # --- Inicialización del estado de la sesión ---
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
     
     # Header principal
     st.markdown('<h1 class="main-header">🚗 Predictor de Precios de Automóviles</h1>', unsafe_allow_html=True)
     st.markdown('<p style="text-align: center; font-size: 1.2rem; color: #666;">Utiliza Machine Learning para predecir precios de automóviles con alta precisión</p>', unsafe_allow_html=True)
     
-    # Sidebar
-    st.sidebar.markdown('<div class="sidebar-info"><h3>📊 Panel de Control</h3><p>Configura tu análisis desde aquí</p></div>', unsafe_allow_html=True)
-    
-    # Subir archivo
-    uploaded_file = st.sidebar.file_uploader("📁 Subir Dataset CSV", type=['csv'])
-    
-    if uploaded_file is not None:
-        # Cargar datos
-        if app.load_data(uploaded_file):
-            st.sidebar.success("✅ Datos cargados exitosamente")
+    # --- Lógica principal de la aplicación ---
+    if not st.session_state.logged_in:
+        login_page()
+    else:
+        st.markdown('<p style="text-align: center; font-size: 1.2rem; color: #666;">Utiliza Machine Learning para predecir precios de automóviles con alta precisión</p>', unsafe_allow_html=True)
+        navigation_bar()
+        with st.sidebar:
+            if st.button("Cerrar Sesión"):
+                st.session_state.logged_in = False
+                st.session_state.page = "home"
+                st.warning("Has cerrado sesión.")
+                st.rerun()
             
-            # Mostrar información del dataset
-            with st.expander("📋 Información del Dataset", expanded=True):
-                col1, col2, col3, col4 = st.columns(4)
+        # Sidebar
+        st.sidebar.markdown('<div class="sidebar-info"><h3>📊 Panel de Control</h3><p>Configura tu análisis desde aquí</p></div>', unsafe_allow_html=True)
+        
+        # Subir archivo
+        uploaded_file = st.sidebar.file_uploader("📁 Subir Dataset CSV", type=['csv'])
+        
+        if uploaded_file is not None:
+            # Cargar datos
+            if app.load_data(uploaded_file):
+                st.sidebar.success("✅ Datos cargados exitosamente")
                 
-                with col1:
-                    st.markdown(f'''
-                    <div class="metric-card">
-                        <h3>📊 Filas</h3>
-                        <h2>{app.df.shape[0]:,}</h2>
-                    </div>
-                    ''', unsafe_allow_html=True)
-                
-                with col2:
-                    st.markdown(f'''
-                    <div class="metric-card">
-                        <h3>📈 Columnas</h3>
-                        <h2>{app.df.shape[1]}</h2>
-                    </div>
-                    ''', unsafe_allow_html=True)
-                
-                with col3:
-                    st.markdown(f'''
-                    <div class="metric-card">
-                        <h3>💰 Precio Promedio</h3>
-                        <h2>${np.exp(app.df["Price_Max_log"].mean()):,.0f}</h2>
-                    </div>
-                    ''', unsafe_allow_html=True)
-                
-                with col4:
-                    st.markdown(f'''
-                    <div class="metric-card">
-                        <h3>🔍 Valores Únicos</h3>
-                        <h2>{app.df.nunique().sum()}</h2>
-                    </div>
-                    ''', unsafe_allow_html=True)
-            
-            # Preparar datos
-            data_prep = app.prepare_data()
-            if data_prep:
-                X, y_reg, y_clf, numeric_cols, categorical_cols = data_prep
-                preprocessor = app.create_preprocessor(numeric_cols, categorical_cols)
-                
-                # Tabs principales
-                tab1, tab2, tab3, tab4 = st.tabs(["🎯 Predicción", "📊 Análisis de Modelos", "📈 Visualizaciones", "🔍 Exploración de Datos"])
-                
-                with tab1:
-                    st.markdown("### 🎯 Realizar Predicción")
+                # --- Controles de la Sidebar (ahora que df existe) ---
+                with st.sidebar:
+                    st.header("Filtros y Controles")
+                    st.markdown("Usa estos controles para interactuar con los datos.")
                     
-                    # Entrenar modelos si no están entrenados
-                    if app.best_model_reg is None:
-                        with st.spinner("🔄 Entrenando modelos... Por favor espera."):
-                            best_reg_name, best_clf_name, reg_results, clf_results = app.train_models(X, y_reg, y_clf)
-                        
-                        st.success(f"✅ Modelos entrenados exitosamente!")
-                        st.info(f"🏆 Mejor modelo de regresión: **{best_reg_name}**")
-                        st.info(f"🏆 Mejor modelo de clasificación: **{best_clf_name}**")
+                    # Buscar la columna de marcas de forma flexible
+                    brand_column = None
+                    if 'Brands' in app.df.columns:
+                        brand_column = 'Brands'
+                    elif 'Brand' in app.df.columns:
+                        brand_column = 'Brand'
+
+                    # Inicializar selected_brand
+                    selected_brand = 'Todas'
+
+                    # Usamos app.df que ya está cargado
+                    if brand_column:
+                        selected_brand = st.selectbox(
+                            "Selecciona una Marca",
+                            options=['Todas'] + sorted(app.df[brand_column].unique()),
+                            key="brand_select"
+                        )
+                    else:
+                        st.warning("No se encontró una columna de marca ('Brands' o 'Brand') para el filtro.")
+
+                    if st.button("Refrescar datos"):
+                        st.cache_data.clear()
+                        st.rerun()
+                        st.success("¡Datos refrescados exitosamente!")
+
+                    @st.cache_data
+                    def convert_df_to_csv(df_to_convert):
+                        return df_to_convert.to_csv(index=False).encode('utf-8')
                     
-                    # Formulario de predicción
-                    st.markdown("#### 📝 Ingresa las características del automóvil:")
+                    # Filtrar datos para descarga
+                    if selected_brand != 'Todas':
+                        filtered_df_download = app.df[app.df['Brands'] == selected_brand]
+                    else:
+                        filtered_df_download = app.df
                     
-                    col1, col2 = st.columns(2)
+                    csv = convert_df_to_csv(filtered_df_download)
                     
-                    prediction_data = {}
+                    st.download_button(
+                        label="Descargar Datos Filtrados",
+                        data=csv,
+                        file_name='datos_filtrados.csv',
+                        mime='text/csv',
+                    )
+
+                # Mostrar información del dataset
+                with st.expander("📋 Información del Dataset", expanded=True):
+                    col1, col2, col3, col4 = st.columns(4)
                     
-                    # Variables numéricas
                     with col1:
-                        st.markdown("##### 🔢 Variables Numéricas")
-                        for col in numeric_cols[:len(numeric_cols)//2]:
-                            if col in app.df.columns:
-                                col_stats = app.df[col].describe()
-                                prediction_data[col] = st.number_input(
-                                    f"{col.replace('_', ' ').title()}",
-                                    min_value=float(col_stats['min']),
-                                    max_value=float(col_stats['max']),
-                                    value=float(col_stats['mean']),
-                                    help=f"Rango: {col_stats['min']:.2f} - {col_stats['max']:.2f}"
-                                )
-                    
-                    with col2:
-                        st.markdown("##### 🔢 Variables Numéricas (cont.)")
-                        for col in numeric_cols[len(numeric_cols)//2:]:
-                            if col in app.df.columns:
-                                col_stats = app.df[col].describe()
-                                prediction_data[col] = st.number_input(
-                                    f"{col.replace('_', ' ').title()}",
-                                    min_value=float(col_stats['min']),
-                                    max_value=float(col_stats['max']),
-                                    value=float(col_stats['mean']),
-                                    help=f"Rango: {col_stats['min']:.2f} - {col_stats['max']:.2f}"
-                                )
-                    
-                    # Variables categóricas
-                    if categorical_cols:
-                        st.markdown("##### 📋 Variables Categóricas")
-                        cols_cat_display = st.columns(min(len(categorical_cols), 3))
-                        for i, col in enumerate(categorical_cols):
-                            if col in app.df.columns:
-                                with cols_cat_display[i % 3]:
-                                    unique_values = app.df[col].unique()
-                                    prediction_data[col] = st.selectbox(
-                                        f"{col.replace('_', ' ').title()}",
-                                        options=unique_values,
-                                        index=0
-                                    )
-                    
-                    # Botón de predicción
-                    if st.button("🚀 Realizar Predicción", type="primary", use_container_width=True):
-                        # Crear DataFrame con los datos de entrada
-                        new_data = pd.DataFrame([prediction_data])
-                        
-                        # Realizar predicciones
-                        precio_pred_log = app.best_model_reg.predict(new_data)[0]
-                        categoria_pred = app.best_model_clf.predict(new_data)[0]
-                        
-                        # Convertir precio a escala original
-                        precio_pred = np.exp(precio_pred_log)
-                        
-                        # Obtener probabilidades
-                        if hasattr(app.best_model_clf, 'predict_proba'):
-                            proba = app.best_model_clf.predict_proba(new_data)[0]
-                            proba_alto = proba[1] if len(proba) > 1 else 0
-                        else:
-                            proba_alto = categoria_pred
-                        
-                        # Mostrar resultados
                         st.markdown(f'''
-                        <div class="prediction-result">
-                            <h2>🎯 Resultados de la Predicción</h2>
-                            <h1>${precio_pred:,.2f}</h1>
-                            <h3>Categoría: {"🔴 Precio Alto" if categoria_pred == 1 else "🟢 Precio Bajo"}</h3>
-                            <p>Probabilidad de precio alto: {proba_alto:.1%}</p>
+                        <div class="metric-card">
+                            <h3>📊 Filas</h3>
+                            <h2>{app.df.shape[0]:,}</h2>
                         </div>
                         ''', unsafe_allow_html=True)
+                    
+                    with col2:
+                        st.markdown(f'''
+                        <div class="metric-card">
+                            <h3>📈 Columnas</h3>
+                            <h2>{app.df.shape[1]}</h2>
+                        </div>
+                        ''', unsafe_allow_html=True)
+                    
+                    with col3:
+                        st.markdown(f'''
+                        <div class="metric-card">
+                            <h3>💰 Precio Promedio</h3>
+                            <h2>${np.exp(app.df["Price_Max_log"].mean()):,.0f}</h2>
+                        </div>
+                        ''', unsafe_allow_html=True)
+                    
+                    with col4:
+                        st.markdown(f'''
+                        <div class="metric-card">
+                            <h3>🔍 Valores Únicos</h3>
+                            <h2>{app.df.nunique().sum()}</h2>
+                        </div>
+                        ''', unsafe_allow_html=True)
+                
+                # Preparar datos
+                data_prep = app.prepare_data()
+                if data_prep:
+                    X, y_reg, y_clf, numeric_cols, categorical_cols = data_prep
+                    preprocessor = app.create_preprocessor(numeric_cols, categorical_cols)
+                    
+                    # Tabs principales
+                    tab1, tab2, tab3, tab4 = st.tabs(["🎯 Predicción", "📊 Análisis de Modelos", "📈 Visualizaciones", "🔍 Exploración de Datos"])
+                    
+                    with tab1:
+                        st.markdown("### 🎯 Realizar Predicción")
                         
-                        # Gráfico de confianza
-                        fig = go.Figure(go.Indicator(
-                            mode = "gauge+number",
-                            value = proba_alto * 100,
-                            domain = {'x': [0, 1], 'y': [0, 1]},
-                            title = {'text': "Confianza de Precio Alto (%)"},
-                            gauge = {
-                                'axis': {'range': [None, 100]},
-                                'bar': {'color': "darkblue"},
-                                'steps': [
-                                    {'range': [0, 50], 'color': "lightgray"},
-                                    {'range': [50, 100], 'color': "gray"}
-                                ],
-                                'threshold': {
-                                    'line': {'color': "red", 'width': 4},
-                                    'thickness': 0.75,
-                                    'value': 90
+                        # Entrenar modelos si no están entrenados
+                        if app.best_model_reg is None:
+                            with st.spinner("🔄 Entrenando modelos... Por favor espera."):
+                                best_reg_name, best_clf_name, reg_results, clf_results = app.train_models(X, y_reg, y_clf)
+                            
+                            st.success(f"✅ Modelos entrenados exitosamente!")
+                            st.info(f"🏆 Mejor modelo de regresión: **{best_reg_name}**")
+                            st.info(f"🏆 Mejor modelo de clasificación: **{best_clf_name}**")
+                        
+                        
+                        # TODO Agregar botones de inicio, etc..
+                        
+                        
+                        
+                        # Formulario de predicción
+                        st.markdown("#### 📝 Ingresa las características del automóvil:")
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        prediction_data = {}
+                        
+                        # Variables numéricas
+                        with col1:
+                            st.markdown("##### 🔢 Variables Numéricas")
+                            for col in numeric_cols[:len(numeric_cols)//2]:
+                                if col in app.df.columns:
+                                    col_stats = app.df[col].describe()
+                                    prediction_data[col] = st.number_input(
+                                        f"{col.replace('_', ' ').title()}",
+                                        min_value=float(col_stats['min']),
+                                        max_value=float(col_stats['max']),
+                                        value=float(col_stats['mean']),
+                                        help=f"Rango: {col_stats['min']:.2f} - {col_stats['max']:.2f}"
+                                    )
+                        
+                        with col2:
+                            st.markdown("##### 🔢 Variables Numéricas (cont.)")
+                            for col in numeric_cols[len(numeric_cols)//2:]:
+                                if col in app.df.columns:
+                                    col_stats = app.df[col].describe()
+                                    prediction_data[col] = st.number_input(
+                                        f"{col.replace('_', ' ').title()}",
+                                        min_value=float(col_stats['min']),
+                                        max_value=float(col_stats['max']),
+                                        value=float(col_stats['mean']),
+                                        help=f"Rango: {col_stats['min']:.2f} - {col_stats['max']:.2f}"
+                                    )
+                        
+                        # Variables categóricas
+                        if categorical_cols:
+                            st.markdown("##### 📋 Variables Categóricas")
+                            cols_cat_display = st.columns(min(len(categorical_cols), 3))
+                            for i, col in enumerate(categorical_cols):
+                                if col in app.df.columns:
+                                    with cols_cat_display[i % 3]:
+                                        unique_values = app.df[col].unique()
+                                        prediction_data[col] = st.selectbox(
+                                            f"{col.replace('_', ' ').title()}",
+                                            options=unique_values,
+                                            index=0
+                                        )
+                        
+                        # Botón de predicción
+                        if st.button("🚀 Realizar Predicción", type="primary", use_container_width=True):
+                            # Crear DataFrame con los datos de entrada
+                            new_data = pd.DataFrame([prediction_data])
+                            
+                            # Realizar predicciones
+                            precio_pred_log = app.best_model_reg.predict(new_data)[0]
+                            categoria_pred = app.best_model_clf.predict(new_data)[0]
+                            
+                            # Convertir precio a escala original
+                            precio_pred = np.exp(precio_pred_log)
+                            
+                            # Obtener probabilidades
+                            if hasattr(app.best_model_clf, 'predict_proba'):
+                                proba = app.best_model_clf.predict_proba(new_data)[0]
+                                proba_alto = proba[1] if len(proba) > 1 else 0
+                            else:
+                                proba_alto = categoria_pred
+                            
+                            # Mostrar resultados
+                            st.markdown(f'''
+                            <div class="prediction-result">
+                                <h2>🎯 Resultados de la Predicción</h2>
+                                <h1>${precio_pred:,.2f}</h1>
+                                <h3>Categoría: {"🔴 Precio Alto" if categoria_pred == 1 else "🟢 Precio Bajo"}</h3>
+                                <p>Probabilidad de precio alto: {proba_alto:.1%}</p>
+                            </div>
+                            ''', unsafe_allow_html=True)
+                            
+                            # Gráfico de confianza
+                            fig = go.Figure(go.Indicator(
+                                mode = "gauge+number",
+                                value = proba_alto * 100,
+                                domain = {'x': [0, 1], 'y': [0, 1]},
+                                title = {'text': "Confianza de Precio Alto (%)"},
+                                gauge = {
+                                    'axis': {'range': [None, 100]},
+                                    'bar': {'color': "darkblue"},
+                                    'steps': [
+                                        {'range': [0, 50], 'color': "lightgray"},
+                                        {'range': [50, 100], 'color': "gray"}
+                                    ],
+                                    'threshold': {
+                                        'line': {'color': "red", 'width': 4},
+                                        'thickness': 0.75,
+                                        'value': 90
+                                    }
                                 }
-                            }
-                        ))
-                        fig.update_layout(height=400)
-                        st.plotly_chart(fig, use_container_width=True)
-                
-                with tab2:
-                    st.markdown("### 📊 Comparación de Modelos")
+                            ))
+                            fig.update_layout(height=400)
+                            st.plotly_chart(fig, use_container_width=True)
                     
-                    if app.models_regression:
-                        # Comparación de modelos de regresión
-                        st.markdown("#### 📈 Modelos de Regresión")
-                        reg_comparison = []
-                        for name, results in app.models_regression.items():
-                            reg_comparison.append({
-                                'Modelo': name,
-                                'RMSE': results['rmse'],
-                                'R²': results['r2']
+                    with tab2:
+                        st.markdown("### 📊 Comparación de Modelos")
+                        
+                        if app.models_regression:
+                            # Comparación de modelos de regresión
+                            st.markdown("#### 📈 Modelos de Regresión")
+                            reg_comparison = []
+                            for name, results in app.models_regression.items():
+                                reg_comparison.append({
+                                    'Modelo': name,
+                                    'RMSE': results['rmse'],
+                                    'R²': results['r2']
+                                })
+                            
+                            df_reg_comp = pd.DataFrame(reg_comparison).sort_values('R²', ascending=False)
+                            st.dataframe(df_reg_comp, use_container_width=True)
+                            
+                            # Gráfico de comparación
+                            fig = px.bar(df_reg_comp, x='Modelo', y='R²', 
+                                        title='Comparación R² por Modelo',
+                                        color='R²', color_continuous_scale='viridis')
+                            st.plotly_chart(fig, use_container_width=True)
+                        
+                        if app.models_classification:
+                            # Comparación de modelos de clasificación
+                            st.markdown("#### 🎯 Modelos de Clasificación")
+                            clf_comparison = []
+                            for name, results in app.models_classification.items():
+                                clf_comparison.append({
+                                    'Modelo': name,
+                                    'Exactitud': results['accuracy']
+                                })
+                            
+                            df_clf_comp = pd.DataFrame(clf_comparison).sort_values('Exactitud', ascending=False)
+                            st.dataframe(df_clf_comp, use_container_width=True)
+                            
+                            # Gráfico de comparación
+                            fig = px.bar(df_clf_comp, x='Modelo', y='Exactitud', 
+                                        title='Comparación Exactitud por Modelo',
+                                        color='Exactitud', color_continuous_scale='plasma')
+                            st.plotly_chart(fig, use_container_width=True)
+                    
+                    with tab3:
+                        st.markdown("### 📈 Visualizaciones del Dataset")
+                        
+                        # Distribución de precios
+                        fig1 = px.histogram(app.df, x='Price_Max_log', 
+                                        title='Distribución de Precios (Log)',
+                                        marginal='box')
+                        st.plotly_chart(fig1, use_container_width=True)
+                        
+                        # Correlación entre variables numéricas
+                        if len(numeric_cols) > 1:
+                            corr_matrix = app.df[numeric_cols].corr()
+                            fig2 = px.imshow(corr_matrix, 
+                                            title='Matriz de Correlación',
+                                            color_continuous_scale='RdBu')
+                            st.plotly_chart(fig2, use_container_width=True)
+                        
+                        # Distribución de categorías de precio
+                        if 'Precio_Alto' in app.df.columns:
+                            precio_counts = app.df['Precio_Alto'].value_counts()
+                            fig3 = px.pie(values=precio_counts.values, 
+                                        names=['Precio Bajo', 'Precio Alto'],
+                                        title='Distribución de Categorías de Precio')
+                            st.plotly_chart(fig3, use_container_width=True)
+                    
+                    with tab4:
+                        st.markdown("### 🔍 Exploración de Datos")
+                        
+                        # Estadísticas descriptivas
+                        st.markdown("#### 📊 Estadísticas Descriptivas")
+                        st.dataframe(app.df.describe(), use_container_width=True)
+                        
+                        # Información del dataset
+                        st.markdown("#### ℹ️ Información del Dataset")
+                        buffer = st.empty()
+                        
+                        # Mostrar primeras filas
+                        st.markdown("#### 👁️ Vista Previa de los Datos")
+                        st.dataframe(app.df.head(10), use_container_width=True)
+                        
+                        # Valores faltantes
+                        missing_data = app.df.isnull().sum()
+                        if missing_data.sum() > 0:
+                            st.markdown("#### ⚠️ Valores Faltantes")
+                            missing_df = pd.DataFrame({
+                                'Columna': missing_data.index,
+                                'Valores Faltantes': missing_data.values,
+                                'Porcentaje': (missing_data.values / len(app.df)) * 100
                             })
-                        
-                        df_reg_comp = pd.DataFrame(reg_comparison).sort_values('R²', ascending=False)
-                        st.dataframe(df_reg_comp, use_container_width=True)
-                        
-                        # Gráfico de comparación
-                        fig = px.bar(df_reg_comp, x='Modelo', y='R²', 
-                                    title='Comparación R² por Modelo',
-                                    color='R²', color_continuous_scale='viridis')
-                        st.plotly_chart(fig, use_container_width=True)
-                    
-                    if app.models_classification:
-                        # Comparación de modelos de clasificación
-                        st.markdown("#### 🎯 Modelos de Clasificación")
-                        clf_comparison = []
-                        for name, results in app.models_classification.items():
-                            clf_comparison.append({
-                                'Modelo': name,
-                                'Exactitud': results['accuracy']
-                            })
-                        
-                        df_clf_comp = pd.DataFrame(clf_comparison).sort_values('Exactitud', ascending=False)
-                        st.dataframe(df_clf_comp, use_container_width=True)
-                        
-                        # Gráfico de comparación
-                        fig = px.bar(df_clf_comp, x='Modelo', y='Exactitud', 
-                                    title='Comparación Exactitud por Modelo',
-                                    color='Exactitud', color_continuous_scale='plasma')
-                        st.plotly_chart(fig, use_container_width=True)
-                
-                with tab3:
-                    st.markdown("### 📈 Visualizaciones del Dataset")
-                    
-                    # Distribución de precios
-                    fig1 = px.histogram(app.df, x='Price_Max_log', 
-                                       title='Distribución de Precios (Log)',
-                                       marginal='box')
-                    st.plotly_chart(fig1, use_container_width=True)
-                    
-                    # Correlación entre variables numéricas
-                    if len(numeric_cols) > 1:
-                        corr_matrix = app.df[numeric_cols].corr()
-                        fig2 = px.imshow(corr_matrix, 
-                                        title='Matriz de Correlación',
-                                        color_continuous_scale='RdBu')
-                        st.plotly_chart(fig2, use_container_width=True)
-                    
-                    # Distribución de categorías de precio
-                    if 'Precio_Alto' in app.df.columns:
-                        precio_counts = app.df['Precio_Alto'].value_counts()
-                        fig3 = px.pie(values=precio_counts.values, 
-                                     names=['Precio Bajo', 'Precio Alto'],
-                                     title='Distribución de Categorías de Precio')
-                        st.plotly_chart(fig3, use_container_width=True)
-                
-                with tab4:
-                    st.markdown("### 🔍 Exploración de Datos")
-                    
-                    # Estadísticas descriptivas
-                    st.markdown("#### 📊 Estadísticas Descriptivas")
-                    st.dataframe(app.df.describe(), use_container_width=True)
-                    
-                    # Información del dataset
-                    st.markdown("#### ℹ️ Información del Dataset")
-                    buffer = st.empty()
-                    
-                    # Mostrar primeras filas
-                    st.markdown("#### 👁️ Vista Previa de los Datos")
-                    st.dataframe(app.df.head(10), use_container_width=True)
-                    
-                    # Valores faltantes
-                    missing_data = app.df.isnull().sum()
-                    if missing_data.sum() > 0:
-                        st.markdown("#### ⚠️ Valores Faltantes")
-                        missing_df = pd.DataFrame({
-                            'Columna': missing_data.index,
-                            'Valores Faltantes': missing_data.values,
-                            'Porcentaje': (missing_data.values / len(app.df)) * 100
-                        })
-                        missing_df = missing_df[missing_df['Valores Faltantes'] > 0]
-                        st.dataframe(missing_df, use_container_width=True)
-                    else:
-                        st.success("✅ No hay valores faltantes en el dataset")
-    
-    else:
-        # Página de inicio
-        st.markdown("""
-        <div style="text-align: center; padding: 2rem;">
-            <h2>🚀 ¡Bienvenido al Predictor de Precios de Automóviles!</h2>
-            <p style="font-size: 1.1rem;">Esta aplicación utiliza algoritmos de Machine Learning avanzados para predecir precios de automóviles.</p>
-            <br>
-            <p>📁 <strong>Para comenzar, sube tu archivo CSV en la barra lateral</strong></p>
-        </div>
-        """, unsafe_allow_html=True)
+                            missing_df = missing_df[missing_df['Valores Faltantes'] > 0]
+                            st.dataframe(missing_df, use_container_width=True)
+                        else:
+                            st.success("✅ No hay valores faltantes en el dataset")
         
-        # Información sobre el formato esperado
-        with st.expander("📋 Formato del Dataset", expanded=True):
+        else:
+            # Página de inicio
             st.markdown("""
-            ### Formato Esperado del Dataset:
+            <div style="text-align: center; padding: 2rem;">
+                <h2>🚀 ¡Bienvenido al Predictor de Precios de Automóviles!</h2>
+                <p style="font-size: 1.1rem;">Esta aplicación utiliza algoritmos de Machine Learning avanzados para predecir precios de automóviles.</p>
+                <br>
+                <p>📁 <strong>Para comenzar, sube tu archivo CSV en la barra lateral</strong></p>
+            </div>
+            """, unsafe_allow_html=True)
             
-            - **Price_Max_log**: Variable objetivo (precio en escala logarítmica)
-            - **Variables numéricas**: Características como kilometraje, año, etc.
-            - **Variables categóricas**: Marca, modelo, tipo de combustible, etc.
-            
-            ### Características de la Aplicación:
-            
-            ✅ **Múltiples algoritmos de ML**: Random Forest, SVM, Regresión Lineal, etc.  
-            ✅ **Predicción dual**: Precio exacto + Categoría (Alto/Bajo)  
-            ✅ **Visualizaciones interactivas**: Gráficos y análisis detallados  
-            ✅ **Comparación de modelos**: Encuentra el mejor algoritmo para tus datos  
-            ✅ **Interfaz intuitiva**: Fácil de usar, sin conocimientos técnicos  
-            """)
+            # Información sobre el formato esperado
+            with st.expander("📋 Formato del Dataset", expanded=True):
+                st.markdown("""
+                ### Formato Esperado del Dataset:
+                
+                - **Price_Max_log**: Variable objetivo (precio en escala logarítmica)
+                - **Variables numéricas**: Características como kilometraje, año, etc.
+                - **Variables categóricas**: Marca, modelo, tipo de combustible, etc.
+                
+                ### Características de la Aplicación:
+                
+                ✅ **Múltiples algoritmos de ML**: Random Forest, SVM, Regresión Lineal, etc.  
+                ✅ **Predicción dual**: Precio exacto + Categoría (Alto/Bajo)  
+                ✅ **Visualizaciones interactivas**: Gráficos y análisis detallados  
+                ✅ **Comparación de modelos**: Encuentra el mejor algoritmo para tus datos  
+                ✅ **Interfaz intuitiva**: Fácil de usar, sin conocimientos técnicos  
+                """)
 
 if __name__ == "__main__":
     main()
