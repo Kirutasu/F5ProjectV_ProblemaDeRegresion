@@ -1,3 +1,10 @@
-.json
-.venv
+# Ignorar entornos virtuales
+venv/
+.venv/
+# Ignorar archivos de Python compilados
 __pycache__/
+*.pyc
+models/
+assets/
+*.joblib
+*.pkl
