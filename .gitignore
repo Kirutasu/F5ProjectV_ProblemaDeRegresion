@@ -1,10 +1,16 @@
-# Ignorar entornos virtuales
+#Entorno virtual de Python
 venv/
 .venv/
-# Ignorar archivos de Python compilados
-__pycache__/
+
+#Archivos de caché y compilación
+pycache/
 *.pyc
-models/
-assets/
-*.joblib
+*.pyd
+
+#Archivos específicos de Pytest
+.pytest_cache/
+
+#Archivos de datos o modelos guardados (si no deben ir al repositorio)
 *.pkl
+*.joblib
+*.h5

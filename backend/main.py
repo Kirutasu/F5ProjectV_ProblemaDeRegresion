@@ -1,87 +1,91 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 from contextlib import asynccontextmanager
-import os
-from dotenv import load_dotenv # Si usas .env para variables de entorno
-from models import CarPredictionRequest, CarPredictionResponse
-from ml_service_final import cargar_modelos, CarPredictionService
+from typing import Optional # ¡CORRECCIÓN CLAVE: Importar Optional!
 
-# Cargar variables de entorno (si aplica)
-load_dotenv()
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from backend.models import CarPredictionRequest, CarPredictionResponse
+from backend.ml_service_final import CarPredictionService, cargar_modelos
 
-# --- 1. Configuración del Lifespan (Carga de Modelos) ---
+# Creamos una instancia global del servicio, inicializada como None
+car_service: Optional[CarPredictionService] = None
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Función que se ejecuta al inicio y al final de la aplicación."""
+    """
+    Función de ciclo de vida que se ejecuta al inicio y al final del servidor.
+    Se encarga de cargar los modelos.
+    """
     print("Iniciando FastAPI: Llamando a cargar_modelos()...")
-    # Llama a la función de carga del servicio ML
-    if not cargar_modelos():
-        print("¡ADVERTENCIA! La aplicación continuará, pero el servicio /predict fallará sin modelos.")
+    if cargar_modelos():
+        global car_service
+        try:
+            # Inicializamos el servicio SOLO después de cargar los modelos
+            car_service = CarPredictionService()
+            print("✅ Modelos de ML cargados exitosamente.")
+        except Exception as e:
+            print(f"El servicio de predicción no pudo inicializarse: {e}")
+            # Si la inicialización falla, el servicio permanece como None.
+            car_service = None
+    else:
+        print("❌ Fallo al cargar los modelos de ML.")
     
-    yield # La aplicación permanece activa
-
-    # Al cierre (si necesitas limpiar recursos)
+    yield
     print("Apagando FastAPI.")
 
 
-# --- 2. Inicialización de la Aplicación FastAPI ---
-app = FastAPI(
-    title="Car Price Prediction API",
-    version="1.0.0",
-    lifespan=lifespan # Asocia el lifespan
-)
+app = FastAPI(lifespan=lifespan)
 
-# --- 3. Configuración de CORS ---
-# Crucial para permitir que tu frontend de Streamlit (que corre en otro puerto/servidor) 
-# pueda hacer peticiones a este backend.
-# Para desarrollo, puedes usar "*". Para producción, usa la URL específica del frontend.
-origins = [
-    "*", # Permite cualquier origen (MÁS FÁCIL PARA DESARROLLO)
-    # "http://localhost:8501", # Si Streamlit corre localmente en el puerto 8501
-]
-
+# Configuración de CORS para permitir peticiones desde Streamlit
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"], # Permite todos los métodos (POST, GET, etc.)
-    allow_headers=["*"], # Permite todas las cabeceras
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# --- 4. Inicialización del Servicio ---
-# Esto solo ocurrirá después de que el lifespan haya intentado cargar los modelos
-try:
-    car_service = CarPredictionService()
-except RuntimeError as e:
-    # Esto es un caso de error extremo donde el servicio no está listo
-    print(f"El servicio de predicción no pudo inicializarse: {e}")
-    car_service = None # Dejamos la variable a None o manejamos de otra forma
+def get_car_prediction_service() -> CarPredictionService:
+    """Dependencia para inyectar el servicio de predicción."""
+    if car_service is None:
+        # Lanza un 503 si el servicio no se pudo inicializar (modelos no cargados)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Servicio de predicción no disponible. Los modelos no se cargaron correctamente."
+        )
+    return car_service
 
-# --- 5. Endpoints ---
-
+# Endpoint de prueba
 @app.get("/")
 def read_root():
-    """Endpoint de salud (Health check)."""
-    return {"message": "✅ Car Price Prediction API is running!"}
+    return {"message": "API de Predicción de Precios de Autos activa."}
 
-
+# Endpoint principal de predicción
 @app.post("/predict", response_model=CarPredictionResponse)
-async def predict_car_price(request: CarPredictionRequest):
-    """
-    Endpoint principal para recibir datos JSON y devolver la predicción.
-    """
-    if car_service is None:
-        raise HTTPException(status_code=503, detail="Servicio no disponible. El modelo de ML falló al cargar.")
-
+def predict(
+    request: CarPredictionRequest,
+    service: CarPredictionService = Depends(get_car_prediction_service)
+):
+    """Recibe datos de un auto y devuelve el precio predicho."""
     try:
-        # Llama al servicio de predicción
-        predicted_price = car_service.predict(request)
-
-        # Devuelve la respuesta en el formato de CarPredictionResponse
-        return CarPredictionResponse(predicted_price=predicted_price)
-
+        # Llamada a la lógica de predicción en ml_service_final.py
+        predicted_value = service.predecir_precio(request)
+        
+        # Devolver un diccionario que coincide con CarPredictionResponse
+        return CarPredictionResponse(predicted_price=predicted_value)
+        
+    except ValueError as e:
+        # Atrapa errores específicos de manejo de datos
+        print(f"Error durante la predicción: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Datos de entrada inválidos: {e}"
+        )
     except Exception as e:
-        # Captura errores en la lógica de predicción/preprocesamiento
-        print(f"Error en la predicción/preprocesamiento: {e}")
-        # Retorna un 500 (Error Interno del Servidor)
-        raise HTTPException(status_code=500, detail="Error interno al procesar la solicitud.")
+        # Atrapa cualquier otro error interno y lo registra
+        print(f"Error interno inesperado durante la predicción: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno del servidor durante la predicción."
+        )
+
