@@ -1,91 +1,72 @@
-import asyncio
+# backend/main.py
 from contextlib import asynccontextmanager
-from typing import Optional # ¡CORRECCIÓN CLAVE: Importar Optional!
-
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from backend.models import CarPredictionRequest, CarPredictionResponse
-from backend.ml_service_final import CarPredictionService, cargar_modelos
+from fastapi.responses import JSONResponse
 
-# Creamos una instancia global del servicio, inicializada como None
-car_service: Optional[CarPredictionService] = None
+from core.config import settings
+from core.logger import logger
+from ml.service import CarPredictionService
+from api.routes import router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Función de ciclo de vida que se ejecuta al inicio y al final del servidor.
-    Se encarga de cargar los modelos.
-    """
-    print("Iniciando FastAPI: Llamando a cargar_modelos()...")
-    if cargar_modelos():
-        global car_service
-        try:
-            # Inicializamos el servicio SOLO después de cargar los modelos
-            car_service = CarPredictionService()
-            print("✅ Modelos de ML cargados exitosamente.")
-        except Exception as e:
-            print(f"El servicio de predicción no pudo inicializarse: {e}")
-            # Si la inicialización falla, el servicio permanece como None.
-            car_service = None
-    else:
-        print("❌ Fallo al cargar los modelos de ML.")
+    """Gestión del ciclo de vida de la aplicación."""
+    logger.info("Iniciando aplicación FastAPI...")
+    
+    # Inicializar servicio de ML
+    try:
+        app.state.car_service = CarPredictionService()
+        logger.info("Servicio de predicción inicializado correctamente")
+    except Exception as e:
+        logger.error(f"❌ Error inicializando el servicio de predicción: {e}")
+        app.state.car_service = None
     
     yield
-    print("Apagando FastAPI.")
+    
+    # Cleanup
+    logger.info("Apagando aplicación FastAPI...")
+    app.state.car_service = None
 
+# Crear aplicación FastAPI
+app = FastAPI(
+    title=settings.API_TITLE,
+    description=settings.API_DESCRIPTION,
+    version=settings.API_VERSION,
+    lifespan=lifespan
+)
 
-app = FastAPI(lifespan=lifespan)
-
-# Configuración de CORS para permitir peticiones desde Streamlit
+# Configuración CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-def get_car_prediction_service() -> CarPredictionService:
-    """Dependencia para inyectar el servicio de predicción."""
-    if car_service is None:
-        # Lanza un 503 si el servicio no se pudo inicializar (modelos no cargados)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Servicio de predicción no disponible. Los modelos no se cargaron correctamente."
-        )
-    return car_service
+# Registrar rutas
+app.include_router(router)
 
-# Endpoint de prueba
-@app.get("/")
-def read_root():
-    return {"message": "API de Predicción de Precios de Autos activa."}
+# Manejador global de excepciones
+@app.exception_handler(500)
+async def internal_error_handler(request: Request, exc: Exception):
+    logger.error(f"Error interno del servidor: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "error",
+            "message": "Error interno del servidor",
+            "error": str(exc)
+        }
+    )
 
-# Endpoint principal de predicción
-@app.post("/predict", response_model=CarPredictionResponse)
-def predict(
-    request: CarPredictionRequest,
-    service: CarPredictionService = Depends(get_car_prediction_service)
-):
-    """Recibe datos de un auto y devuelve el precio predicho."""
-    try:
-        # Llamada a la lógica de predicción en ml_service_final.py
-        predicted_value = service.predecir_precio(request)
-        
-        # Devolver un diccionario que coincide con CarPredictionResponse
-        return CarPredictionResponse(predicted_price=predicted_value)
-        
-    except ValueError as e:
-        # Atrapa errores específicos de manejo de datos
-        print(f"Error durante la predicción: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Datos de entrada inválidos: {e}"
-        )
-    except Exception as e:
-        # Atrapa cualquier otro error interno y lo registra
-        print(f"Error interno inesperado durante la predicción: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error interno del servidor durante la predicción."
-        )
-
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "backend.main:app",
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=settings.RELOAD,
+        log_level="info"
+    )

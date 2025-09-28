@@ -1,38 +1,12 @@
-# ----------------------------
-# API y backend
-# ----------------------------
 fastapi==0.117.1
 uvicorn[standard]==0.36.0
-asyncpg==0.30.0
 python-dotenv==1.1.1
-pydantic==2.10.4
-
-# ----------------------------
-# Manipulación de datos / ML
-# ----------------------------
-numpy==1.26.4          # ✅ Última versión con soporte completo para Python 3.11
-pandas==2.2.3
-scipy==1.10.1
-polars==1.14.0
-missingno==0.5.2
-kagglehub==0.3.13
-
-# ----------------------------
-# Visualización
-# ----------------------------
-matplotlib==3.9.2
-seaborn==0.13.2
-plotly==5.24.1
-
-# ----------------------------
-# Machine Learning y Preprocesamiento
-# ----------------------------
+pydantic==2.11.7
+pydantic-settings==2.8.1
+numpy==1.26.4
+pandas==2.3.2
 scikit-learn==1.5.2
 joblib==1.4.2
-
-# ----------------------------
-# Producción / App
-# ----------------------------
-streamlit==1.39.0
-streamlit-aggrid==1.1.8
-streamlit-option-menu==0.4.0
+requests==2.32.4
+python-multipart==0.0.9
+aiofiles==23.2.1
