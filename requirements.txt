@@ -7,9 +7,11 @@ starlette==0.47.3
 asgiref==3.9.1
 python-dotenv==1.1.1
 pydantic==2.11.7
+pydantic-settings==2.8.1
+asyncpg==0.30.0
 
 # ----------------------------
-# Django (opcional, si lo usas junto a FastAPI)
+# Django (opcional)
 # ----------------------------
 Django==5.2.4
 sqlparse==0.5.3
@@ -17,11 +19,11 @@ sqlparse==0.5.3
 # ----------------------------
 # Manipulación de datos
 # ----------------------------
-numpy==2.3.2
+numpy==1.26.4
 pandas==2.3.2
 scipy==1.16.1
-missingno==0.5.2
 polars==1.14.0
+missingno==0.5.2
 kagglehub==0.3.4
 
 # ----------------------------
@@ -41,6 +43,8 @@ joblib==1.4.2
 # Producción / App
 # ----------------------------
 streamlit==1.39.0
+streamlit-aggrid==1.1.8
+streamlit-option-menu==0.4.0
 requests==2.32.4
 
 # ----------------------------
@@ -48,3 +52,9 @@ requests==2.32.4
 # ----------------------------
 selenium==4.34.2
 webdriver-manager==4.0.2
+
+# ----------------------------
+# Utilidades del sistema
+# ----------------------------
+python-multipart==0.0.9
+aiofiles==23.2.1

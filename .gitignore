@@ -1,6 +1,8 @@
 #Entorno virtual de Python
 venv/
 .venv/
+*.pyc
+__pycache__/
 
 #Archivos de caché y compilación
 pycache/
@@ -11,6 +13,6 @@ pycache/
 .pytest_cache/
 
 #Archivos de datos o modelos guardados (si no deben ir al repositorio)
-*.pkl
+
 *.joblib
 *.h5

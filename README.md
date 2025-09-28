@@ -1,332 +1,385 @@
-# 🚗 F5ProjectV - Sistema de Predicción de Precios de Automóviles
+# Vehicle Price Prediction Platform
 
-Un sistema completo de machine learning para predicción de precios de automóviles utilizando datos transformados y modelos avanzados de regresión y clasificación.
+Una plataforma completa de Machine Learning para la predicción de precios de automóviles, construida con FastAPI, Streamlit y modelos de ML optimizados.
 
-## 📋 Tabla de Contenidos
+## Características
 
-- [Características Principales](#-características-principales)
-- [Arquitectura del Sistema](#-arquitectura-del-sistema)
-- [Instalación y Configuración](#-instalación-y-configuración)
-- [Uso de la API](#-uso-de-la-api)
-- [Estructura de Datos](#-estructura-de-datos)
-- [Modelos de Machine Learning](#-modelos-de-machine-learning)
-- [Endpoints Disponibles](#-endpoints-disponibles)
-- [Testing y Validación](#-testing-y-validación)
-- [Contribución](#-contribución)
+- **API REST** con FastAPI para predicciones en tiempo real
+- **Dashboard interactivo** con Streamlit y visualizaciones avanzadas
+- **Modelos ML optimizados**: Decision Tree (99.59% precisión) y Linear Regression
+- **Base de datos PostgreSQL** para almacenamiento persistente
+- **Arquitectura Docker** para despliegue escalable
+- **Informes ejecutivos** con métricas de ROI y análisis de negocio
 
-## ✨ Características Principales
-
-- **Predicción de Precios**: Modelos de regresión avanzados para estimar precios de automóviles
-- **Clasificación de Precios**: Sistema binario para categorizar vehículos como "Precio Alto" o "Precio Bajo"
-- **API RESTful**: Endpoints FastAPI para integración con aplicaciones frontend
-- **Datos Transformados**: Utiliza transformaciones logarítmicas y Box-Cox para mejorar el rendimiento de los modelos
-- **Entrenamiento Automático**: Los modelos se entrenan automáticamente al iniciar la aplicación
-- **Validación Robusta**: Sistema completo de validación de datos de entrada y salida
-
-## 🏗️ Arquitectura del Sistema
+## Arquitectura del Proyecto
 
 ```
 F5ProjectV_ProblemaDeRegresion/
-├── backend/
-│   ├── main.py                 # API FastAPI principal
-│   ├── models.py              # Modelos Pydantic
-│   ├── ml_service.py          # Servicio de ML
-│   ├── validation.py          # Validación de datos
-│   ├── modelo_final.py        # Modelo ML avanzado
-│   └── requirements.txt       # Dependencias
-├── data/
-│   └── new_data.csv          # Datos transformados
-├── generate_sql.py           # Generador de SQL
-├── cars_data.sql            # Base de datos SQL
-├── docker-compose.yml       # Docker Compose
-└── frontend/                # Aplicación frontend
+├── backend/          # API FastAPI
+├── frontend/         # Dashboard Streamlit  
+├── notebook/         # Modelos ML y análisis
+├── data/            # Datasets
+├── scripts/         # Scripts de utilidades
+└── docker-compose.yml
 ```
 
-## 🚀 Instalación y Configuración
+## Instalación y Uso
 
-### Prerrequisitos
-
-- Python 3.8+
-- PostgreSQL
-- Docker (opcional)
-
-### Instalación con Docker
-
-1. **Clonar el repositorio**:
-   ```bash
-   git clone <repository-url>
-   cd F5ProjectV_ProblemaDeRegresion
-   ```
-
-2. **Configurar variables de entorno**:
-   ```bash
-   cp backend/.env.example backend/.env
-   ```
-
-   Editar `backend/.env`:
-   ```env
-   DATABASE_URL=postgresql://myuser:mypass@db:5432/mydb
-   ```
-
-3. **Levantar servicios con Docker**:
-   ```bash
-   docker-compose up -d
-   ```
-
-4. **Instalar dependencias**:
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   ```
-
-### Instalación Manual
-
-1. **Configurar PostgreSQL**:
-   ```sql
-   CREATE DATABASE mydb;
-   CREATE USER myuser WITH PASSWORD 'mypass';
-   GRANT ALL PRIVILEGES ON DATABASE mydb TO myuser;
-   ```
-
-2. **Cargar datos**:
-   ```bash
-   psql -h localhost -U myuser -d mydb -f cars_data.sql
-   ```
-
-3. **Ejecutar la aplicación**:
-   ```bash
-   cd backend
-   python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-   ```
-
-## 🖼️ Frontend (Vite)
-
-El proyecto incluye una aplicación frontend basada en React + Vite en `frontend/regresiones_frontend/`.
-
-- Puerto de desarrollo (Docker): `http://localhost:8005`
-- API Backend (Docker): `http://localhost:8000`
-- Variable de entorno para el frontend: `VITE_BACKEND_URL`
-
-Con Docker Compose, esta variable ya se pasa al contenedor del frontend como `VITE_BACKEND_URL=http://backend:8000` (ver `docker-compose.yml`).
-
-Para ejecutar el frontend localmente fuera de Docker:
+### Opción 1: Docker (Recomendado)
 
 ```bash
-cd frontend/regresiones_frontend
-cp .env .env.local  # opcional; ajusta VITE_BACKEND_URL si lo necesitas
-npm install
-npm run dev
+# Clonar repositorio
+git clone <repository-url>
+cd F5ProjectV_ProblemaDeRegresion
+
+# Configurar entorno
+cp .env.example .env
+chmod +x scripts/*.sh
+
+# Iniciar con Docker
+docker-compose up --build -d
+
+# O usar Makefile
+make up
 ```
 
-Abre `http://localhost:3000` y asegúrate de que `VITE_BACKEND_URL` apunte al backend (por defecto `http://localhost:8000`).
+**URLs de acceso:**
+- Frontend: http://localhost:8501
+- Backend API: http://localhost:8000
+- Documentación API: http://localhost:8000/docs
 
-## 🔧 Uso de la API
-
-### Verificar Estado del Sistema
+### Opción 2: Ejecución Local
 
 ```bash
-curl http://localhost:8000/health
+# Configurar entorno virtual
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Ejecutar servicios
+./scripts/run-local.sh
 ```
 
-Respuesta:
-```json
+### Opción 3: Sin Conectividad Docker
+
+Si tienes problemas de conectividad Docker:
+
+```bash
+# Usar versión offline
+docker-compose -f docker-compose-offline.yml up --build
+
+# O ejecutar diagnóstico
+./scripts/fix-docker.sh
+```
+
+## Comandos Útiles
+
+```bash
+# Ver estado de servicios
+make check
+
+# Ver logs
+make logs
+
+# Limpiar recursos Docker
+make clean
+
+# Backup de base de datos
+make backup-db
+
+# Health check detallado
+make health
+
+# Ayuda completa
+make help
+```
+
+## API Endpoints
+
+### Predicción de Precios
+```http
+POST /predict
+Content-Type: application/json
+
 {
-  "status": "healthy",
-  "models_trained": true
+  "Manufacturer": "Toyota",
+  "Model": "Camry",
+  "Year": 2022,
+  "Transmission": "Automatic",
+  "Mileage": 15000,
+  "FuelType": "Petrol",
+  "EngineSize": 2.5
 }
 ```
 
-### Obtener Información de Modelos
-
-```bash
-curl http://localhost:8000/model/info
+### Health Check
+```http
+GET /health
 ```
 
-### Obtener Datos de Automóviles
-
-```bash
-# Obtener todos los autos (limitado a 100)
-curl http://localhost:8000/cars?limit=100
-
-# Filtrar por precio
-curl "http://localhost:8000/cars/filter?min_price=10&max_price=15&limit=50"
+### Información del Modelo
+```http
+GET /model-info
 ```
 
-### Realizar Predicción
+## Modelos de Machine Learning
 
-```bash
-curl -X POST "http://localhost:8000/predict" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "engine_capacity_in_cc_log": 8.5,
-    "horsepower_in_hp_log": 6.8,
-    "horsepower_in_hp_2_log": 6.8,
-    "max_speed_in_km_h_boxcox": 1.5,
-    "time_to_100kmph_sec_reciprocal": 0.3,
-    "seats_yeojohnson": -0.5,
-    "torque_in_nm_log": 6.7,
-    "torque_in_nm_2_log": 6.7
-  }'
-```
+### Clasificación
+- **Algoritmo**: Decision Tree
+- **Precisión**: 99.59%
+- **Características**: 12 features de entrada
+- **Uso**: Clasificación de tipos de vehículos
 
-Respuesta:
+### Regresión
+- **Algoritmo**: Linear Regression
+- **R²**: 0.93
+- **MAE**: $2,150
+- **Uso**: Predicción de precios
+
+## Dashboard Features
+
+### Panel Principal
+- KPIs en tiempo real
+- Distribución de precios
+- Análisis por marca y tipo de combustible
+- Métricas de rendimiento del modelo
+
+### Informes Ejecutivos
+- ROI y análisis de costos
+- Recomendaciones estratégicas
+- Proyecciones de ahorro
+- Métricas de negocio
+
+### Plataforma ML
+- Entrenamiento de modelos
+- Predicciones interactivas
+- Pipeline completo de ML
+- Monitoreo de rendimiento
+
+## Estructura de Datos
+
+### Entrada Requerida
 ```json
 {
-  "precio_predicho": 45000.50,
-  "categoria_predicha": "Precio Alto",
-  "probabilidad_alta": 0.85,
-  "modelo_usado_regresion": "Random Forest",
-  "modelo_usado_clasificacion": "Logistic Regression"
+  "Manufacturer": "string",
+  "Model": "string", 
+  "Year": "integer",
+  "Transmission": "string",
+  "Mileage": "integer",
+  "FuelType": "string",
+  "EngineSize": "float"
 }
 ```
 
-### Entrenar Modelos
-
-```bash
-curl -X POST http://localhost:8000/train
+### Respuesta de Predicción
+```json
+{
+  "status": "success",
+  "message": "Predicción realizada correctamente",
+  "data": {
+    "predicted_price": 25750.50
+  }
+}
 ```
 
-## 📊 Estructura de Datos
-
-### Columnas de Datos Transformados
-
-| Columna | Descripción | Transformación |
-|---------|-------------|----------------|
-| `engine_capacity_in_cc_log` | Capacidad del motor (log) | Logarítmica |
-| `horsepower_in_hp_log` | Potencia (log) | Logarítmica |
-| `horsepower_in_hp_2_log` | Potencia secundaria (log) | Logarítmica |
-| `max_speed_in_km_h_boxcox` | Velocidad máxima | Box-Cox |
-| `time_to_100kmph_sec_reciprocal` | Tiempo a 100km/h | Recíproca |
-| `price_max_log` | Precio máximo (log) | Logarítmica |
-| `seats_yeojohnson` | Número de asientos | Yeo-Johnson |
-| `torque_in_nm_log` | Torque (log) | Logarítmica |
-| `torque_in_nm_2_log` | Torque secundario (log) | Logarítmica |
-| `precio_categoria` | Categoría de precio | Categórica |
-| `precio_alto` | Precio alto (0/1) | Binaria |
-| `seats_cat` | Categoría de asientos | Categórica |
-
-## 🤖 Modelos de Machine Learning
-
-### Modelo de Regresión
-- **Algoritmo**: Random Forest Regressor
-- **Parámetros**:
-  - `n_estimators`: 200
-  - `max_depth`: 10
-  - `random_state`: 42
-- **Métricas objetivo**: RMSE, MAE, R²
-
-### Modelo de Clasificación
-- **Algoritmo**: Logistic Regression
-- **Métricas objetivo**: Accuracy, Precision, Recall, F1-Score, AUC-ROC
-
-## 🔌 Endpoints Disponibles
-
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/health` | Estado del sistema |
-| GET | `/model/info` | Información de modelos |
-| GET | `/cars` | Listar automóviles |
-| GET | `/cars/filter` | Filtrar automóviles |
-| POST | `/predict` | Realizar predicción |
-| POST | `/train` | Entrenar modelos |
-| GET | `/stats/columns` | Columnas disponibles |
-| GET | `/stats/distinct` | Valores distintos |
-
-## 🧪 Testing y Validación
-
-### Testing Automático
-
-El sistema incluye validación automática de:
-
-- **Datos de entrada**: Rangos válidos y tipos correctos
-- **Modelos entrenados**: Verificación de rendimiento
-- **Respuestas**: Estructura y tipos de datos
-- **Conexión a BD**: Disponibilidad y accesibilidad
-
-### Validación Manual
-
-```python
-# Ejemplo de testing
-import requests
-
-# Test de predicción
-response = requests.post("http://localhost:8000/predict", json={
-    "engine_capacity_in_cc_log": 8.5,
-    "horsepower_in_hp_log": 6.8,
-    "horsepower_in_hp_2_log": 6.8,
-    "max_speed_in_km_h_boxcox": 1.5,
-    "time_to_100kmph_sec_reciprocal": 0.3,
-    "seats_yeojohnson": -0.5,
-    "torque_in_nm_log": 6.7,
-    "torque_in_nm_2_log": 6.7
-})
-
-print(response.json())
-```
-
-## 🔧 Configuración Avanzada
+## Configuración
 
 ### Variables de Entorno
+```bash
+# API Configuration
+API_TITLE="API de Predicción de Precios de Autos"
+API_VERSION="1.0.0"
 
-```env
-DATABASE_URL=postgresql://user:password@host:port/database
-LOG_LEVEL=INFO
-MODEL_UPDATE_INTERVAL=3600  # segundos
-MAX_PREDICTIONS_PER_HOUR=1000
+# Database
+DATABASE_URL=postgresql://myuser:mypass@db:5432/mydb
+
+# Server
+HOST=0.0.0.0
+PORT=8000
 ```
 
-### Parámetros de Modelos
+### Base de Datos
+- **PostgreSQL 15** para producción
+- **SQLite** para desarrollo local
+- Migrations automáticos en inicio
+- Backup automático disponible
 
-Los parámetros de los modelos se pueden configurar en `ml_service.py`:
+## Desarrollo
 
-```python
-# Ejemplo de configuración
-model_config = {
-    "regresion": {
-        "n_estimators": 200,
-        "max_depth": 10,
-        "random_state": 42
-    },
-    "clasificacion": {
-        "random_state": 42
-    }
-}
+### Estructura del Backend
+```
+backend/
+├── api/
+│   ├── dependencies.py  # Inyección de dependencias
+│   ├── routes.py       # Endpoints REST
+│   └── schemas.py      # Modelos Pydantic
+├── core/
+│   ├── config.py       # Configuración
+│   └── logger.py       # Logging
+├── ml/
+│   └── service.py      # Servicio ML
+└── main.py            # Aplicación FastAPI
 ```
 
-## 🤝 Contribución
+### Estructura del Frontend
+```
+frontend/
+├── streamlit_car_prediction_app.py  # App principal
+├── .streamlit/
+│   └── config.toml                  # Configuración Streamlit
+└── requirements.txt
+```
+
+## Monitoreo y Logs
+
+### Health Checks
+- **Backend**: `/health` endpoint
+- **Database**: Conexión PostgreSQL
+- **Models**: Estado de modelos ML
+
+### Logging
+- Logs estructurados en JSON
+- Rotación automática
+- Niveles: INFO, WARNING, ERROR
+- Ubicación: `backend/logs/api.log`
+
+## Despliegue en Producción
+
+### Docker Swarm
+```bash
+docker swarm init
+docker stack deploy -c docker-compose.yml ml-platform
+```
+
+### Kubernetes
+```bash
+# Generar manifiestos K8s
+kompose convert -f docker-compose.yml
+kubectl apply -f .
+```
+
+### Variables de Producción
+- Deshabilitar `reload` en uvicorn
+- Usar base de datos externa
+- Configurar reverse proxy (nginx)
+- SSL/HTTPS habilitado
+
+## Troubleshooting
+
+### Problemas Comunes
+
+**Docker no puede descargar imágenes:**
+```bash
+./scripts/fix-docker.sh
+docker-compose -f docker-compose-offline.yml up
+```
+
+**Modelos no se cargan:**
+- Verificar rutas en `backend/core/config.py`
+- Confirmar archivos `.pkl` en `notebook/`
+
+**Frontend no conecta al backend:**
+- Verificar `BACKEND_URL` en variables de entorno
+- Confirmar puertos disponibles (8000, 8501)
+
+### Logs de Debug
+```bash
+# Backend logs
+docker-compose logs -f backend
+
+# Frontend logs
+docker-compose logs -f frontend
+
+# Database logs
+docker-compose logs -f db
+```
+
+## Contribución
 
 1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
+2. Crear rama feature (`git checkout -b feature/nueva-funcionalidad`)
+3. Commit cambios (`git commit -m 'Agregar nueva funcionalidad'`)
+4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
+5. Abrir Pull Request
 
-## 📝 Historial de Versiones
+Cómo Usar
+Inicio Rápido (3 pasos)
 
-### v2.0.0 (2024)
-- ✅ Integración completa con modelo_final.py
-- ✅ API FastAPI optimizada
-- ✅ Sistema de validación robusto
-- ✅ Entrenamiento automático
-- ✅ Documentación completa
+Clonar y configurar:
 
-### v1.0.0 (2023)
-- ✅ Modelo básico de regresión
-- ✅ API inicial
-- ✅ Base de datos PostgreSQL
+bash   git clone <repository-url>
+   cd F5ProjectV_ProblemaDeRegresion
+   cp .env.example .env
 
-## 📄 Licencia
+Iniciar aplicación:
 
-Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.
+bash   # Opción A: Con Docker (recomendado)
+   make up
+   
+   # Opción B: Sin Docker
+   ./scripts/run-local.sh
+   
+   # Opción C: Si hay problemas de conectividad
+   docker-compose -f docker-compose-offline.yml up --build
 
-## 📞 Soporte
+Acceder a la aplicación:
 
-Para soporte técnico, contactar al equipo de desarrollo:
+Frontend: http://localhost:8501
+API: http://localhost:8000
+Documentación: http://localhost:8000/docs
 
-- **Email**: support@f5project.com
-- **Issues**: [GitHub Issues](https://github.com/username/F5ProjectV_ProblemaDeRegresion/issues)
-- **Documentación**: [Wiki](https://github.com/username/F5ProjectV_ProblemaDeRegresion/wiki)
+
+
+Usar la Predicción de Precios
+Desde el Dashboard Web
+
+Ve a http://localhost:8501
+Completa el formulario con datos del vehículo
+Haz clic en "Predict Price"
+Obtén el precio estimado
+
+Desde la API REST
+bashcurl -X POST "http://localhost:8000/predict" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "Manufacturer": "Toyota",
+       "Model": "Camry",
+       "Year": 2022,
+       "Transmission": "Automatic", 
+       "Mileage": 15000,
+       "FuelType": "Petrol",
+       "EngineSize": 2.5
+     }'
+Desde Python
+pythonimport requests
+
+data = {
+    "Manufacturer": "Toyota",
+    "Model": "Camry", 
+    "Year": 2022,
+    "Transmission": "Automatic",
+    "Mileage": 15000,
+    "FuelType": "Petrol",
+    "EngineSize": 2.5
+}
+
+response = requests.post("http://localhost:8000/predict", json=data)
+precio = response.json()["data"]["predicted_price"]
+print(f"Precio estimado: ${precio:,.2f}")
+
+## Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
+
+## Soporte
+
+Para soporte técnico:
+- Revisar documentación en `/docs`
+- Verificar issues en GitHub
+- Ejecutar `make help` para comandos disponibles
 
 ---
 
-**¡Gracias por usar F5ProjectV! 🚗✨**
+**Desarrollado con:** FastAPI • Streamlit • scikit-learn • Docker • PostgreSQL
