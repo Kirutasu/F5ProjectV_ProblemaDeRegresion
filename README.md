@@ -1,6 +1,7 @@
 # Vehicle Price Prediction Platform
 
-Una plataforma completa de Machine Learning para la predicción de precios de automóviles, construida con FastAPI, Streamlit y modelos de ML optimizados.
+Plataforma de Machine Learning de punta a punta para predecir precios de automóviles. Incluye API (FastAPI), dashboard (Streamlit), artefactos de modelo versionados y orquestación con Docker Compose.
+
 
 ## Características
 
@@ -12,20 +13,6 @@ Una plataforma completa de Machine Learning para la predicción de precios de au
 - **Informes ejecutivos** con métricas de ROI y análisis de negocio
 
 ## Arquitectura del Proyecto
-
-```
-F5ProjectV_ProblemaDeRegresion/
-├── backend/          # API FastAPI
-├── frontend/         # Dashboard Streamlit  
-├── notebook/         # Modelos ML y análisis
-├── data/            # Datasets
-├── scripts/         # Scripts de utilidades
-└── docker-compose.yml
-```
-
-## Instalación y Uso
-
-### Opción 1: Docker (Recomendado)
 
 ```bash
 # Clonar repositorio
