@@ -1,4 +1,5 @@
 # Vehicle Price Prediction Platform
+![a1](https://github.com/user-attachments/assets/bd088987-5a0b-490c-992d-c29f1469f873)
 
 Plataforma de Machine Learning de punta a punta para predecir precios de automóviles. Incluye API (FastAPI), dashboard (Streamlit), artefactos de modelo versionados y orquestación con Docker Compose.
 
