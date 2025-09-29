@@ -8,6 +8,7 @@ __pycache__/
 pycache/
 *.pyc
 *.pyd
+*.log
 
 #Archivos específicos de Pytest
 .pytest_cache/
