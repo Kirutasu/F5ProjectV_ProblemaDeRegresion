@@ -11,9 +11,9 @@ if ! command -v python &> /dev/null; then
 fi
 
 # Crear entorno virtual si no existe
-if [ ! -d "venv" ]; then
+if [ ! -d ".venv" ]; then
     echo "Creando entorno virtual..."
-    python -m venv venv
+    python -m venv .venv
 fi
 
 # Activar entorno virtual

@@ -508,7 +508,7 @@ def main():
                     <div style="font-size: 0.9rem;">Vehicles Analyzed</div>
                 </div>
                 <div style="text-align: center;">
-                    <div style="font-size: 2.5rem; font-weight: bold;">±12%</div>
+                    <div style="font-size: 2.5rem; font-weight: bold;">±1.2%</div>
                     <div style="font-size: 0.9rem;">Prediction Variance</div>
                 </div>
                 <div style="text-align: center;">
