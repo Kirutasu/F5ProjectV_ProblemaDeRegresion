@@ -4,6 +4,54 @@
 
 ---
 
+## ▶️ Cómo ejecutar la app
+
+### Opción A: Docker Compose (recomendado)
+
+1. Desde la raíz del proyecto:
+```bash
+docker compose up --build -d
+```
+2. Accede a:
+- UI: http://localhost:8501
+- API: http://localhost:8000 (documentación en /docs)
+
+3. Probar predicción (opcional):
+```bash
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "Manufacturer": "Toyota",
+    "Model": "Camry",
+    "Year": 2022,
+    "Transmission": "Automatic",
+    "Mileage": 15000,
+    "FuelType": "Petrol",
+    "EngineSize": 2.5
+  }'
+```
+
+### Opción B: Ejecución local (sin Docker)
+
+1. Crear entorno e instalar dependencias (raíz):
+```bash
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+2. Backend (terminal 1):
+```bash
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+```
+3. Frontend (terminal 2):
+```bash
+cd frontend
+streamlit run streamlit_car_prediction_app.py --server.port 8501
+```
+
+---
+
 ## 🚀 Introducción
 
 **CarPredict** es un sistema inteligente que utiliza Machine Learning para predecir precios de automóviles basándose en sus especificaciones técnicas. El sistema combina modelos avanzados de regresión y clasificación para proporcionar estimaciones precisas y categorizaciones de precios.
@@ -13,7 +61,7 @@
 ## 🌐 Acceso al Sistema
 
 ### URL de Acceso
-- **Frontend**: http://localhost:8005
+- **Frontend**: http://localhost:8501
 - **API Backend**: http://localhost:8000
 
 ### Requisitos del Sistema
@@ -296,7 +344,7 @@ El sistema proporciona:
 
 ### Información del Sistema
 - **Versión**: 2.0.0
-- **Tecnologías**: React + FastAPI + PostgreSQL
+- **Tecnologías**: Streamlit + FastAPI + SQLite/PostgreSQL
 - **Modelos**: Random Forest + Logistic Regression
 - **Base de Datos**: 827+ automóviles
 ---
