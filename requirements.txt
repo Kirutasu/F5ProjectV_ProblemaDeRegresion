@@ -1,0 +1,60 @@
+# ----------------------------
+# API y Backend
+# ----------------------------
+fastapi==0.117.1
+uvicorn[standard]==0.36.0
+starlette==0.47.3
+asgiref==3.9.1
+python-dotenv==1.1.1
+pydantic==2.11.7
+pydantic-settings==2.8.1
+asyncpg==0.30.0
+
+# ----------------------------
+# Django (opcional)
+# ----------------------------
+Django==5.2.4
+sqlparse==0.5.3
+
+# ----------------------------
+# Manipulación de datos
+# ----------------------------
+numpy==1.26.4
+pandas==2.3.2
+scipy==1.16.1
+polars==1.14.0
+missingno==0.5.2
+kagglehub==0.3.4
+
+# ----------------------------
+# Visualización
+# ----------------------------
+matplotlib==3.10.6
+seaborn==0.13.2
+plotly==5.24.1
+
+# ----------------------------
+# Machine Learning
+# ----------------------------
+scikit-learn==1.5.2
+joblib==1.4.2
+
+# ----------------------------
+# Producción / App
+# ----------------------------
+streamlit==1.39.0
+streamlit-aggrid==1.1.8
+streamlit-option-menu==0.4.0
+requests==2.32.4
+
+# ----------------------------
+# Web scraping / automatización (opcional)
+# ----------------------------
+selenium==4.34.2
+webdriver-manager==4.0.2
+
+# ----------------------------
+# Utilidades del sistema
+# ----------------------------
+python-multipart==0.0.9
+aiofiles==23.2.1

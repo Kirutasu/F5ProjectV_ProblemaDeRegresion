@@ -1,0 +1,48 @@
+
+services:
+  # Backend FastAPI (sin base de datos externa)
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ml_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DATABASE_URL=sqlite:///app/data/vehicles.db
+    volumes:
+      - ./backend/logs:/app/backend/logs
+      - ./notebook:/app/notebook:ro
+      - ./backend:/app/backend
+      - ./data:/app/data
+    networks:
+      - ml-network
+    restart: unless-stopped
+
+  # Frontend Streamlit
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: ml_frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_SERVER_ENABLE_CORS=false
+      - STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false
+    volumes:
+      - ./frontend:/app/frontend
+    networks:
+      - ml-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+networks:
+  ml-network:
+    driver: bridge
