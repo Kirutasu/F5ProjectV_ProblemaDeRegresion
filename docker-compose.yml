@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   # Backend FastAPI (sin base de datos externa)
