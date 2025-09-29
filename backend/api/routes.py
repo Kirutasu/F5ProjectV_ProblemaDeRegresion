@@ -25,8 +25,9 @@ async def root():
 @router.get("/health", response_model=HealthResponse)
 async def health_check(request: Request):
     """Health check de la aplicación."""
-    service_status = "available" if request.app.state.car_service is not None else "unavailable"
-    modelos_status = "loaded" if request.app.state.car_service is not None else "not loaded"
+    car_service = getattr(request.app.state, "car_service", None)
+    service_status = "available" if car_service is not None else "unavailable"
+    modelos_status = "loaded" if car_service is not None else "not loaded"
     
     return HealthResponse(
         status="healthy" if service_status == "available" else "unhealthy",
