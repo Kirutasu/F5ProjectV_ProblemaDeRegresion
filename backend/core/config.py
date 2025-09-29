@@ -1,6 +1,6 @@
 # backend/core/config.py
 from pathlib import Path
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -15,9 +15,9 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     RELOAD: bool = True
-
+    
     # Base de datos
-    DATABASE_URL: str | None = None   # 👈 lee postgres://... de .env
+    DATABASE_URL: str | None = None   # lee postgres://... de .env
     
     # Configuración de modelos
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
@@ -38,7 +38,10 @@ class Settings(BaseSettings):
     # Configuración CORS
     CORS_ORIGINS: list = ["*"]
     
-    class Config:
-        env_file = ".env"
+    # Pydantic v2 config
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore"  # Ignorar variables extra en .env para evitar errores
+    )
 
 settings = Settings()
