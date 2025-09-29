@@ -50,6 +50,53 @@ cd frontend
 streamlit run streamlit_car_prediction_app.py --server.port 8501
 ```
 
+### Variables de entorno
+
+- **BACKEND_URL** (para que el frontend apunte al backend):
+  - En Docker Compose ya se define como `BACKEND_URL=http://backend:8000`.
+  - En ejecución local, si es necesario, exporta/define:
+    - Windows (PowerShell):
+      ```powershell
+      $env:BACKEND_URL = "http://localhost:8000"
+      ```
+    - Windows (CMD):
+      ```bat
+      set BACKEND_URL=http://localhost:8000
+      ```
+    - macOS/Linux:
+      ```bash
+      export BACKEND_URL=http://localhost:8000
+      ```
+
+### Comprobación rápida
+
+- **Acceder a la UI**: `http://localhost:8501`
+- **Docs API**: `http://localhost:8000/docs`
+- **Health**: `http://localhost:8000/health`
+- **Probar predicción (curl)**:
+  ```bash
+  curl -X POST "http://localhost:8000/predict" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "Manufacturer": "Toyota",
+      "Model": "Camry",
+      "Year": 2022,
+      "Transmission": "Automatic",
+      "Mileage": 15000,
+      "FuelType": "Petrol",
+      "EngineSize": 2.5
+    }'
+  ```
+
+### Detener servicios
+
+- **Docker Compose**:
+  ```bash
+  docker compose down
+  ```
+- **Ejecución local**:
+  - Detén con `Ctrl + C` las terminales donde corrían `uvicorn` y `streamlit`.
+
 ---
 
 ## 🚀 Introducción
