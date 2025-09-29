@@ -259,3 +259,15 @@ Este proyecto es para fines educativos y demostrativos. Consulte los términos d
 ---
 
 **¿Listo para empezar?** Ejecuta `streamlit run streamlit_car_prediction_app.py` y comienza a explorar el poder del Machine Learning para la predicción de precios de vehículos! 🚀
+
+## Nota de conexión y puertos
+
+- En Docker Compose, el frontend accede al backend con .
+- En ejecución local (sin Docker), usa .
+- Puertos por defecto: UI , API  (docs en ).
+
+## Nota de conexión y puertos
+
+- En Docker Compose, el frontend accede al backend con `BACKEND_URL=http://backend:8000`.
+- En ejecución local (sin Docker), usa `BACKEND_URL=http://localhost:8000`.
+- Puertos por defecto: UI `http://localhost:8501`, API `http://localhost:8000` (docs en `/docs`).

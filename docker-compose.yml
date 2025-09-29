@@ -5,7 +5,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: backend/Dockerfile.standalone
+      dockerfile: backend/Dockerfile
     container_name: ml_backend
     ports:
       - "8000:8000"
@@ -27,7 +27,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: frontend/Dockerfile.standalone
+      dockerfile: frontend/Dockerfile
     container_name: ml_frontend
     ports:
       - "8501:8501"

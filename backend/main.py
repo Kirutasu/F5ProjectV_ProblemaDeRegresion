@@ -4,10 +4,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from core.config import settings
-from core.logger import logger
-from ml.service import CarPredictionService
-from api.routes import router
+from backend.core.config import settings
+from backend.core.logger import logger
+from backend.ml.service import CarPredictionService
+from backend.api.routes import router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

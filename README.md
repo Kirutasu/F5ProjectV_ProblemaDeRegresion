@@ -304,7 +304,8 @@ docker-compose logs -f db
 4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
 5. Abrir Pull Request
 
-Cómo Usar
+#Cómo Usar
+
 Inicio Rápido (3 pasos)
 
 Clonar y configurar:
@@ -383,3 +384,34 @@ Para soporte técnico:
 ---
 
 **Desarrollado con:** FastAPI • Streamlit • scikit-learn • Docker • PostgreSQL
+---
+
+## Quick start
+
+1) Levantar con Docker Compose:
+```bash
+docker compose up --build -d
+```
+2) Acceder:
+- UI (Streamlit): http://localhost:8501
+- API (FastAPI): http://localhost:8000 (docs en /docs)
+
+3) Probar predicción:
+```bash
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "Manufacturer": "Toyota",
+    "Model": "Camry",
+    "Year": 2022,
+    "Transmission": "Automatic",
+    "Mileage": 15000,
+    "FuelType": "Petrol",
+    "EngineSize": 2.5
+  }'
+```
+
+## Enlaces útiles
+
+- README de Backend: `backend/README.md`
+- README de Frontend: `frontend/README.md`

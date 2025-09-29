@@ -35,14 +35,14 @@ async def health_check(request: Request):
         timestamp=asyncio.get_event_loop().time()
     )
 
-@router.post("/predict", response_model=PredictionResponse)
+@router.post("/predict", response_model=BaseResponse)
 async def predict(
     request: CarPredictionRequest,
     service: CarPredictionService = Depends(get_car_prediction_service)
 ):
     """Endpoint para predecir precios de automóviles."""
     try:
-        logger.info(f"Solicitud de predicción recibida: {request.dict()}")
+        logger.info(f"Solicitud de predicción recibida: {request.model_dump()}")
         predicted_value = service.predecir_precio(request)
         logger.info(f"Predicción realizada: {predicted_value}")
         
