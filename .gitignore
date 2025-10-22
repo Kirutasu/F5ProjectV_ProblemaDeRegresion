@@ -15,4 +15,5 @@ pycache/
 
 #Archivos de datos o modelos guardados (si no deben ir al repositorio)
 *.joblib
-*.h5
+*.h5.venv*/
+.venv311/
