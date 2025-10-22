@@ -22,13 +22,9 @@ cd F5ProjectV_ProblemaDeRegresion
 
 # Configurar entorno
 cp .env.example .env
-chmod +x scripts/*.sh
 
 # Iniciar con Docker
-docker-compose up --build -d
-
-# O usar Makefile
-make up
+docker compose up --build -d
 ```
 
 **URLs de acceso:**
@@ -56,32 +52,25 @@ Si tienes problemas de conectividad Docker:
 
 ```bash
 # Usar versión offline
-docker-compose -f docker-compose-offline.yml up --build
-
-# O ejecutar diagnóstico
-./scripts/fix-docker.sh
+docker compose -f docker-compose-offline.yml up --build
 ```
 
 ## Comandos Útiles
 
 ```bash
 # Ver estado de servicios
-make check
+docker compose ps
 
-# Ver logs
-make logs
+# Ver logs (todos / servicio específico)
+docker compose logs -f
+docker compose logs -f backend
+docker compose logs -f frontend
 
 # Limpiar recursos Docker
-make clean
+docker compose down
 
-# Backup de base de datos
-make backup-db
-
-# Health check detallado
-make health
-
-# Ayuda completa
-make help
+# Health check backend
+curl http://localhost:8000/health
 ```
 
 ## API Endpoints
@@ -260,8 +249,7 @@ kubectl apply -f .
 
 **Docker no puede descargar imágenes:**
 ```bash
-./scripts/fix-docker.sh
-docker-compose -f docker-compose-offline.yml up
+docker compose -f docker-compose-offline.yml up --build
 ```
 
 **Modelos no se cargan:**
@@ -275,13 +263,13 @@ docker-compose -f docker-compose-offline.yml up
 ### Logs de Debug
 ```bash
 # Backend logs
-docker-compose logs -f backend
+docker compose logs -f backend
 
 # Frontend logs
-docker-compose logs -f frontend
+docker compose logs -f frontend
 
 # Database logs
-docker-compose logs -f db
+docker compose logs -f db
 ```
 
 ## Contribución
