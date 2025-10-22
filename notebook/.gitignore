@@ -1,0 +1,30 @@
+# Jupyter
+.ipynb_checkpoints/
+__pycache__/
+
+# Datos
+data/raw/
+*.csv.tmp
+
+# Modelos temporales
+*.pkl.tmp
+*.joblib.tmp
+
+# Entornos virtuales
+venv/
+.env
+
+# Logs
+*.log
+logs/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos temporales
+*.tmp
+*.temp
+
+# Cache
+.cache/
