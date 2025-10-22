@@ -13,7 +13,7 @@ asyncpg==0.30.0
 # ----------------------------
 # Django (opcional)
 # ----------------------------
-Django==5.2.4
+Django==5.2.7
 sqlparse==0.5.3
 
 # ----------------------------
@@ -36,7 +36,7 @@ plotly==5.24.1
 # ----------------------------
 # Machine Learning
 # ----------------------------
-scikit-learn==1.5.2
+scikit-learn==1.7.2
 joblib==1.4.2
 
 # ----------------------------
@@ -47,14 +47,9 @@ streamlit-aggrid==1.1.8
 streamlit-option-menu==0.4.0
 requests==2.32.4
 
-# ----------------------------
-# Web scraping / automatización (opcional)
-# ----------------------------
-selenium==4.34.2
-webdriver-manager==4.0.2
 
 # ----------------------------
 # Utilidades del sistema
 # ----------------------------
-python-multipart==0.0.9
+python-multipart==0.0.19
 aiofiles==23.2.1

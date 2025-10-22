@@ -1,6 +1,7 @@
 #Entorno virtual de Python
 venv/
 .venv/
+.venv311/
 *.pyc
 __pycache__/
 #Archivos de caché y compilación
@@ -8,7 +9,7 @@ pycache/
 *.pyc
 *.pyd
 *.log
-
+*.vscode
 #Archivos específicos de Pytest
 .pytest_cache/
 

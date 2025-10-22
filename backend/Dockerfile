@@ -25,10 +25,10 @@ RUN echo "fastapi==0.117.1" > /app/requirements_simple.txt && \
     echo "pydantic-settings==2.8.1" >> /app/requirements_simple.txt && \
     echo "numpy==1.26.4" >> /app/requirements_simple.txt && \
     echo "pandas==2.3.2" >> /app/requirements_simple.txt && \
-    echo "scikit-learn==1.5.2" >> /app/requirements_simple.txt && \
+    echo "scikit-learn==1.7.2" >> /app/requirements_simple.txt && \
     echo "joblib==1.4.2" >> /app/requirements_simple.txt && \
     echo "requests==2.32.4" >> /app/requirements_simple.txt && \
-    echo "python-multipart==0.0.9" >> /app/requirements_simple.txt && \
+    echo "python-multipart==0.0.19" >> /app/requirements_simple.txt && \
     echo "aiofiles==23.2.1" >> /app/requirements_simple.txt
 
 # Instalar dependencias Python
